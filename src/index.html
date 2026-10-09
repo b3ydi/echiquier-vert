@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Échec au Roi · Le Cercle du Roi Noir</title>
+<title>Code Geass : The Chess Game</title>
 <meta name="description" content="Jeu d'échecs dans le navigateur : contre l'ordinateur (5 niveaux) ou à deux, avec pendules, thèmes et analyse des coups.">
 <meta name="theme-color" content="#302e2b">
 <meta property="og:title" content="Échiquier Vert">
@@ -20,13 +20,7 @@
 <div class="menu splash" id="menu" tabindex="-1" role="dialog" aria-modal="true" aria-label="Menu principal">
   <div class="menu-bg" aria-hidden="true"><div class="menu-ring r1"></div><div class="menu-ring r2"></div><div class="menu-drift" id="menuDrift"></div></div>
   <div class="menu-inner">
-    <svg class="menu-emblem" viewBox="0 0 120 120" aria-hidden="true">
-      <circle cx="60" cy="60" r="54" fill="none" stroke="#d4af5a" stroke-width="1.5" opacity=".7"/>
-      <circle class="emb-spin" cx="60" cy="60" r="47" fill="none" stroke="#e0304a" stroke-width="2.5" stroke-dasharray="4 7 18 7" opacity=".9"/>
-      <path d="M60 22l5 7h-3v5h6v4h-6v6c9 2 15 9 15 17 0 6-3 11-7 14l3 13H47l3-13c-4-3-7-8-7-14 0-8 6-15 15-17v-6h-6v-4h6v-5h-3z" fill="#1b0e2c" stroke="#d4af5a" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M45 66c5-6 25-6 30 0-5 6-25 6-30 0z" fill="#ff2847"/><circle cx="60" cy="66" r="3.5" fill="#1b0e2c"/>
-    </svg>
-    <h1 class="menu-title">Échec au Roi</h1>
+    <h1 class="menu-h1"><img class="menu-logo" src="assets/logo.webp" alt="Code Geass : The Chess Game" draggable="false"></h1>
     <p class="menu-sub">Le Cercle du Roi Noir</p>
     <p class="menu-press" id="menuPress">Appuyez pour commencer</p>
     <nav class="menu-list" id="menuList">
@@ -51,6 +45,14 @@
       <svg class="arrows" id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
     </div>
     <div class="player" id="pBot"></div>
+    <div class="bubble top" id="bubTop" hidden><b></b><span></span></div>
+    <div class="bubble bot" id="bubBot" hidden><b></b><span></span></div>
+    <div class="story-hud" id="storyHud">
+      <div class="hud-ch" id="hudCh"></div>
+      <button class="hud-btn geass" id="hudGeass" title="Geass : révèle le meilleur coup, une fois par partie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Geass</span></button>
+      <button class="hud-btn" id="hudResign" title="Abandonner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Abandon</span></button>
+      <button class="hud-btn" id="hudMenu" title="Menu principal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+    </div>
   </div>
 
   <aside class="panel">

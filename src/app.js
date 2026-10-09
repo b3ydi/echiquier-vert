@@ -85,8 +85,10 @@ for(let i=0;i<64;i++){
 let pcEls={};
 
 function layout(){
-  const W=window.innerWidth, H=window.innerHeight, wide=W>=900;
-  let sz= wide ? Math.min(H-2*46-16-32, W-32-340-24-8) : Math.min(W-32, 640, Math.max(300,H-2*46-16-24));
+  const W=window.innerWidth, H=window.innerHeight, wide=W>=900, story=document.body.classList.contains('story-mode');
+  const bar=story?60:46, hud=story&&!wide?52:0;
+  document.documentElement.style.setProperty('--bar',bar+'px');
+  let sz= wide ? Math.min(H-2*bar-16-32, story?W-32-2*170:W-32-340-24-8) : Math.min(W-32, story?720:640, Math.max(300,H-2*bar-16-24-hud));
   sz=Math.max(232,Math.floor(sz/8)*8);
   document.documentElement.style.setProperty('--sz',sz+'px');
 }
@@ -99,13 +101,13 @@ function newGame(cfg,ucis){
   G={game:new E.Game(),history:[],fens:[E.START],view:0,cfg:{...cfg,color:human},tc,human,
      mode:cfg.mode,level:cfg.level,aiColor:cfg.mode==='ai'?(human==='w'?'b':'w'):null,
      clocks:{w:tc.base*1000,b:tc.base*1000},over:null,orient:cfg.mode==='ai'?human:'w',date:new Date(),
-     story:cfg.story!=null&&STORY.chapters[cfg.story]?cfg.story:null,geass:1};
+     story:cfg.story!=null&&STORY.chapters[cfg.story]?cfg.story:null,geass:1,face:{},lastBark:-9,lastAdv:-99,usedBarks:new Set()};
   hintMove=null; hintReq++;
   sel=null; legalCache=null; marks.clear(); arrows=[];
   if(ucis) for(const u of ucis){ const m=G.game.moves().find(x=>uci(x)===u); if(!m) break; commit(m,null,true); }
   G.view=G.history.length; lastTick=Date.now();
-  closeModal(); closePromo();
-  applySkin();
+  closeModal(); closePromo(); hideBubbles();
+  applySkin(); setLayout();
   renderAll();
 }
 function startFromSettings(){
@@ -129,6 +131,7 @@ function commit(m,anim,silent){
   if(!$('tabPlay').hidden) setTab('game');
   sound(st.over?'end':G.game.inCheck()?'check':(m.flag==='k'||m.flag==='q')?'castle':m.promo?'promote':m.captured?'capture':'move');
   renderAll(anim?m:null);
+  storyBarks(m,mover,st);
   if(st.over) endGame(st); else maybeAI();
   save();
 }
@@ -145,9 +148,9 @@ function takeback(){
   closeModal(); closePromo(); renderAll(); save(); maybeAI();
 }
 let resignArm=0;
-function resign(){
+function resign(btn){
   if(G.over||!G.history.length) return;
-  const btn=$('btnResign');
+  if(!(btn instanceof Element)) btn=$('btnResign');
   if(Date.now()-resignArm>3000){ resignArm=Date.now(); btn.classList.add('warn'); btn.querySelector('span').textContent='Confirmer ?'; setTimeout(()=>{btn.classList.remove('warn');btn.querySelector('span').textContent='Abandon';},3000); return; }
   resignArm=0; btn.classList.remove('warn'); btn.querySelector('span').textContent='Abandon';
   const loser=G.mode==='ai'?G.human:G.game.turn;
@@ -189,7 +192,7 @@ function useGeass(){
   G.geass=0; save();
   const id=++hintReq, fen=G.game.fen();
   board.classList.remove('geass-flash'); board.getBoundingClientRect(); board.classList.add('geass-flash');
-  renderNav(); toast('Geass : Lelouch lit le meilleur coup…');
+  renderNav(); bark('me',STORY.lelouch.geass);
   if(worker) worker.postMessage({id,kind:'hint',fen,opts:HINT_OPTS});
   else setTimeout(()=>{ if(id===hintReq) onHint(id,E.search(fen,HINT_OPTS)); },60);
 }
@@ -241,7 +244,7 @@ function renderBoard(anim){
   for(let i=0;i<64;i++){
     const p=g.b[i]; if(!p) continue;
     const d=document.createElement('div'), [x,y]=xy(i);
-    d.className='pc p-'+pcode(p); d.style.transform=`translate(${x*100}%,${y*100}%)`;
+    d.className='pc p-'+pcode(p); d.style.transform=`translate(${x*100}%,${y*100}%)`; d.style.setProperty('--i',i);
     piecesEl.appendChild(d); pcEls[i]=d;
   }
   if(anim) animate(anim);
@@ -296,8 +299,12 @@ function playerBar(color){
   else name=color==='w'?'Blancs':'Noirs';
   const on=!G.over&&G.game.turn===color&&G.history.length>=1;
   const clock=G.tc.base?`<div class="clock ${color}${on?' on':''}${G.clocks[color]<20000?' low':''}" data-c="${color}">${fmt(G.clocks[color])}</div>`:'';
-  const av=ch?(color===G.human?'K':ch.piece):(G.mode==='ai'&&color!==G.human?'Q':'K');
-  return `<div class="avatar p-${color+av}"></div>
+  let avatar;
+  if(ch){
+    const c=color===G.human?'lelouch':ch.char, info=CH[c], e=G.face[color===G.human?'me':'opp']||info.def;
+    avatar=info.img?`<div class="avatar portrait face-${c}-${info.img[e]?e:info.def}${G.face.speak===c?' talk':''}"></div>`:`<div class="avatar p-${color}${info.piece}"></div>`;
+  } else avatar=`<div class="avatar p-${color+(G.mode==='ai'&&color!==G.human?'Q':'K')}"></div>`;
+  return `${avatar}
     <div class="pinfo"><div class="pname">${name}${tag?`<small>${tag}</small>`:''}</div><div class="caps">${caps}</div></div>${clock}`;
 }
 function renderPlayers(){
@@ -345,6 +352,9 @@ function renderNav(){
   $('geassRow').hidden=G.story==null;
   $('btnGeass').disabled=!G.geass||!!G.over;
   $('btnGeass').querySelector('span').textContent=G.geass?'Geass (1)':'Geass utilisé';
+  $('hudGeass').disabled=$('btnGeass').disabled; $('hudGeass').querySelector('span').textContent=G.geass?'Geass':'Utilisé';
+  $('hudResign').disabled=$('btnResign').disabled;
+  const sc=storyChapter(); $('hudCh').innerHTML=sc?`<b>Chapitre ${G.story+1}</b><span>${esc(sc.title)}</span>`:'';
   $('btnResign').disabled=!!G.over||!G.history.length;
 }
 function renderAll(anim){ renderBoard(anim); renderPlayers(); renderStatus(); renderMoves(); renderNav(); }
@@ -491,7 +501,10 @@ $('navLast').onclick=()=>setView(G.history.length);
 function flip(){ G.orient=G.orient==='w'?'b':'w'; renderBoard(); renderPlayers(); save(); }
 $('btnFlip').onclick=flip;
 $('btnUndo').onclick=takeback;
-$('btnResign').onclick=resign;
+$('btnResign').onclick=()=>resign($('btnResign'));
+$('hudResign').onclick=()=>resign($('hudResign'));
+$('hudGeass').onclick=useGeass;
+$('hudMenu').onclick=()=>openMenu();
 $('btnGeass').onclick=useGeass;
 $('btnNew').onclick=()=>setTab('play');
 $('btnPgn').onclick=async()=>{
@@ -521,7 +534,16 @@ function applySkin(){
 }
 
 /* ---------- tabs & setup ---------- */
+let curTab='play';
+function setLayout(){
+  const on=!!(G&&G.story!=null&&curTab==='game');
+  const was=document.body.classList.contains('story-mode');
+  document.body.classList.toggle('story-mode',on);
+  if(!on){ hideBubbles(); if(menuEl.hidden&&!$('vn')) Music.stop(); }
+  if(on!==was){ layout(); if(G) renderAll(); }
+}
 function setTab(t){
+  curTab=t; setLayout();
   for(const k of ['Play','Story','Game']){ $('tab'+k).hidden=t!==k.toLowerCase(); $('tab'+k+'Btn').setAttribute('aria-selected',t===k.toLowerCase()); }
   if(t==='story') renderStory();
 }
@@ -565,34 +587,95 @@ function storyResult(st){
   if(G.story+1>progress.cleared){ progress.cleared=G.story+1; saveProgress(); }
 }
 
+/* Scene player: full-screen cinematics (backdrop, portraits, captions, title cards, effects)
+   or, with overlay:true, the same dialogue box and portraits over the board. */
 let vnClose=null;
-function dialogue(lines,caption,done){
+const CH=STORY.chars;
+(function(){
+  let css='';
+  for(const c in CH) for(const e in CH[c].img||{}) css+=`.face-${c}-${e}{background-image:url("${CH[c].img[e]}")}`;
+  const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
+})();
+function actorHTML(c,e){
+  const ch=CH[c]; if(!ch) return '';
+  if(ch.img){ const src=ch.img[e]||ch.img[ch.def]; return `<img src="${src}" alt="" draggable="false">`; }
+  return `<div class="actor-piece p-w${ch.piece}"></div>`;
+}
+function scene(shots,opts,done){
   if(vnClose) vnClose(true);
-  let i=0, typing=null;
-  const d=document.createElement('div'); d.className='vn'; d.id='vn';
-  d.setAttribute('role','dialog'); d.setAttribute('aria-modal','true'); d.setAttribute('aria-label','Dialogue');
-  d.innerHTML=`<div class="vn-box" tabindex="-1">${caption?`<div class="vn-cap">${esc(caption)}</div>`:''}<div class="vn-who"></div><p class="vn-text" aria-live="polite"></p><div class="vn-foot"><span class="vn-count"></span><button type="button" class="vn-skip">Passer</button><button type="button" class="vn-next"></button></div></div>`;
+  opts=opts||{};
+  let i=-1, typing=null, autoT=0, bgName='';
+  const stage={left:null,right:null};
+  const d=document.createElement('div'); d.className='cine'+(opts.overlay?' overlay':''); d.id='vn';
+  d.setAttribute('role','dialog'); d.setAttribute('aria-modal','true'); d.setAttribute('aria-label','Scène');
+  d.innerHTML=`<div class="cine-bgs"></div><div class="cine-stage"><div class="actor left"></div><div class="actor right"></div></div>
+    <div class="cine-bars" aria-hidden="true"></div><div class="cine-cap"></div>
+    <div class="cine-card" hidden><h2></h2><p></p></div><div class="cine-fx" aria-hidden="true"></div>
+    <div class="cine-box" tabindex="-1"><div class="vn-who"></div><p class="vn-text" aria-live="polite"></p><div class="vn-foot"><span class="vn-count"></span><button type="button" class="vn-skip">Passer</button><button type="button" class="vn-next"></button></div></div>`;
   document.body.appendChild(d);
-  const who=d.querySelector('.vn-who'), txt=d.querySelector('.vn-text'), nextBtn=d.querySelector('.vn-next');
+  const q=sel=>d.querySelector(sel);
+  const who=q('.vn-who'), txt=q('.vn-text'), box=q('.cine-box'), nextBtn=q('.vn-next');
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setBg(name){
+    if(!name||name===bgName||opts.overlay) return;
+    bgName=name;
+    const layer=document.createElement('div'); layer.className='cine-bg bg-'+name;
+    if(name==='city'||name==='dawn') layer.innerHTML=skyline(name==='dawn');
+    if(name==='city') layer.innerHTML+='<div class="rain"></div>';
+    q('.cine-bgs').appendChild(layer);
+    requestAnimationFrame(()=>layer.classList.add('on'));
+    const old=[...q('.cine-bgs').children].slice(0,-1);
+    setTimeout(()=>old.forEach(o=>o.remove()),900);
+  }
+  function setActor(c,e){
+    const side=c==='lelouch'?'left':'right', el=q('.actor.'+side), cur=stage[side];
+    if(!cur||cur.c!==c){ el.className='actor '+side; el.innerHTML=actorHTML(c,e); void el.offsetWidth; el.classList.add('in'); el.dataset.name=CH[c].name; }
+    else if(cur.e!==e){ el.innerHTML=actorHTML(c,e); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+    stage[side]={c,e};
+    return side;
+  }
+  function fx(kind){
+    const f=q('.cine-fx'); f.className='cine-fx'; void f.offsetWidth; f.classList.add(kind);
+    if(kind==='shake'){ d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); }
+    if(kind==='geass') sound('geass'); else if(kind==='flash'||kind==='shake') sound('select');
+  }
   function show(){
-    const l=lines[i];
-    who.textContent=l.who; who.hidden=!l.who; d.classList.toggle('narr',!l.who);
-    d.querySelector('.vn-count').textContent=`${i+1} / ${lines.length}`;
-    nextBtn.textContent=i===lines.length-1?'Continuer ▸':'Suivant ▸';
+    const l=shots[i];
+    clearTimeout(autoT);
+    setBg(l.bg);
+    if(l.clear) for(const side of ['left','right']){ stage[side]=null; q('.actor.'+side).className='actor '+side; }
+    let speaking=null;
+    if(l.who&&CH[l.who]) speaking=setActor(l.who,l.e||(stage[l.who==='lelouch'?'left':'right']||{}).e||CH[l.who].def);
+    for(const side of ['left','right']) q('.actor.'+side).classList.toggle('dim',!!stage[side]&&side!==speaking);
+    const cap=q('.cine-cap');
+    if(l.bg&&!l.caption) cap.classList.remove('on');
+    if(l.caption){ cap.textContent=l.caption; cap.classList.remove('on'); void cap.offsetWidth; cap.classList.add('on'); }
+    const card=q('.cine-card');
+    card.hidden=!l.card;
+    if(l.card){ card.querySelector('h2').textContent=l.card.title; card.querySelector('p').textContent=l.card.sub||''; card.classList.remove('on'); void card.offsetWidth; card.classList.add('on'); }
+    if(l.fx) fx(l.fx);
+    const name=l.who?(CH[l.who]?CH[l.who].name:l.who):'';
+    who.textContent=name; who.hidden=!name; d.classList.toggle('narr',!name);
+    box.hidden=!l.text;
+    q('.vn-count').textContent=`${i+1} / ${shots.length}`;
+    nextBtn.textContent=i===shots.length-1?'Continuer ▸':'Suivant ▸';
     clearInterval(typing); typing=null;
+    if(l.auto) autoT=setTimeout(next,l.auto);
+    if(!l.text) return;
     if(reduce){ txt.textContent=l.text; return; }
     let n=0; txt.textContent='';
     typing=setInterval(()=>{ n+=2; txt.textContent=l.text.slice(0,n); if(n>=l.text.length){ clearInterval(typing); typing=null; } },16);
   }
   function next(){
-    if(typing){ clearInterval(typing); typing=null; txt.textContent=lines[i].text; return; }
-    if(++i>=lines.length) finish(); else show();
+    if(typing){ clearInterval(typing); typing=null; txt.textContent=shots[i].text; return; }
+    if(++i>=shots.length) finish(); else show();
   }
   function finish(silent){
-    clearInterval(typing); d.remove(); document.removeEventListener('keydown',key,true); vnClose=null;
-    if(!silent&&done) done();
-    if(!silent&&menuEl.hidden&&!$('vn')) Music.stop();
+    clearInterval(typing); clearTimeout(autoT); document.removeEventListener('keydown',key,true); vnClose=null;
+    if(silent){ d.remove(); return; }
+    d.classList.add('out'); setTimeout(()=>d.remove(),opts.overlay?150:650);
+    if(done) done();
+    if(menuEl.hidden&&!$('vn')&&!(G&&G.story!=null&&!G.over)) Music.stop();
   }
   function key(e){
     if(e.target.closest&&e.target.closest('.vn-skip')) return;
@@ -601,28 +684,81 @@ function dialogue(lines,caption,done){
   }
   d.addEventListener('click',e=>{ if(e.target.closest('.vn-skip')) finish(); else next(); });
   document.addEventListener('keydown',key,true);
-  vnClose=finish; Music.start();
-  show(); d.querySelector('.vn-box').focus();
+  vnClose=finish; Music.start(); Music.level(1);
+  next(); box.focus();
+}
+// Night or dawn skyline, drawn once per backdrop.
+function skyline(dawn){
+  let b='', x=0;
+  while(x<1600){
+    const w=40+Math.random()*90, h=120+Math.random()*(x>500&&x<1100?330:220);
+    b+=`<rect x="${x}" y="${600-h}" width="${w}" height="${h}"/>`;
+    if(!dawn) for(let wy=600-h+12;wy<590;wy+=18) for(let wx=x+8;wx<x+w-8;wx+=14) if(Math.random()<.22) b+=`<rect class="win" x="${wx}" y="${wy}" width="5" height="8"/>`;
+    x+=w+2+Math.random()*10;
+  }
+  return `<svg class="skyline" viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${b}</svg>`;
 }
 
+function revealBoard(){
+  const app=$('app'); app.classList.remove('reveal'); void app.offsetWidth; app.classList.add('reveal'); Music.level(.35);
+  sound('select'); setTimeout(()=>app.classList.remove('reveal'),1600);
+}
 function startStory(i,retry){
   const ch=STORY.chapters[i]; if(!ch||i>progress.cleared) return;
   ensureAudio();
   newGame({mode:'ai',level:ch.level,color:ch.color,tc:ch.tc,story:i});
   setTab('game'); save();
-  if(retry) return maybeAI();
-  const intro=()=>dialogue(ch.intro,`Chapitre ${i+1} · ${ch.place}`,()=>{ if(G&&G.story===i) maybeAI(); });
-  if(progress.seen) return intro();
+  if(retry){ revealBoard(); return setTimeout(maybeAI,900); }
+  const card={bg:ch.intro[0].bg,clear:true,caption:ch.place,card:{title:`Chapitre ${i+1}`,sub:`${ch.name}, ${ch.title}`},who:'',text:'',auto:2600};
+  const shots=[...(progress.seen?[]:STORY.prologue),...ch.intro,card];
   progress.seen=true; saveProgress();
-  dialogue(STORY.prologue,STORY.title,intro);
+  scene(shots,{},()=>{ if(G&&G.story===i){ revealBoard(); setTimeout(()=>{ if(G&&G.story===i) maybeAI(); },1000); } });
 }
 function showStoryEnd(){
   const st=G.over, i=G.story, ch=STORY.chapters[i], won=humanWon(st), last=i===STORY.chapters.length-1;
-  const lines=won?ch.win:st.result==='1/2-1/2'?[{who:ch.short,text:"Une nulle ? Le Cercle ne libère que les vainqueurs. Recommence."}]:ch.lose;
-  dialogue(lines,'',()=>{
-    if(won&&last) dialogue(STORY.epilogue,'Épilogue',()=>storyCard(true,true));
+  const lines=won?ch.win:st.result==='1/2-1/2'?[{who:ch.char,text:"Une nulle ? Le Cercle ne libère que les vainqueurs. Recommencez."}]:ch.lose;
+  scene(lines,{overlay:true},()=>{
+    if(won&&last) scene(STORY.epilogue,{},()=>storyCard(true,true));
     else storyCard(won,false);
   });
+}
+
+/* In-match lines: speech bubbles next to the player bars, with the portrait's expression following along. */
+const bubT={};
+function hideBubbles(){ for(const id of ['bubTop','bubBot']){ const b=$(id); if(b) b.hidden=true; clearTimeout(bubT[id]); } if(G&&G.face){ G.face={}; } }
+function bark(side,lines){
+  if(!G||G.story==null||!lines||!lines.length) return;
+  const pool=lines.filter(l=>!G.usedBarks.has(l)), l=(pool.length?pool:lines)[Math.floor(Math.random()*(pool.length||lines.length))];
+  G.usedBarks.add(l); G.lastBark=G.history.length;
+  const me=side==='me', c=me?'lelouch':storyChapter().char;
+  const top=(me?G.human:G.aiColor)!==G.orient, id=top?'bubTop':'bubBot', b=$(id);
+  G.face={[me?'me':'opp']:l.e,speak:c};
+  b.querySelector('b').textContent=CH[c].name; b.querySelector('span').textContent=l.text;
+  b.classList.toggle('me',me);
+  b.hidden=false; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  renderPlayers();
+  clearTimeout(bubT[id]);
+  bubT[id]=setTimeout(()=>{ b.hidden=true; if(G&&G.face.speak===c){ G.face={}; renderPlayers(); } },Math.max(2600,l.text.length*55));
+}
+function materialFor(color){
+  let m=0; for(const p of G.game.b){ if(!p) continue; const t=p.toLowerCase(); if(t==='k') continue; m+=(p===t?-1:1)*VALS[t]; }
+  return color==='w'?m:-m;
+}
+function storyBarks(m,mover,st){
+  if(G.story==null||st.over) return;
+  const B=storyChapter().barks||{}, L=STORY.lelouch, ply=G.history.length;
+  const chk=G.game.inCheck(), val=m.captured?VALS[m.captured.toLowerCase()]:0;
+  if(!chk&&ply-G.lastBark<2) return;
+  if(mover===G.aiColor){
+    if(chk) return bark('opp',B.check);
+    if(val>=3&&Math.random()<.4) return bark('me',L.hurt);
+    if(val>=3||(val&&Math.random()<.55)) return bark('opp',B.capture);
+    if(materialFor(G.aiColor)>=3&&ply-G.lastAdv>12){ G.lastAdv=ply; return bark('opp',B.advantage); }
+  } else {
+    if(chk) return Math.random()<.5?bark('opp',B.checked):bark('me',L.check);
+    if(val>=3) return bark('opp',B.hurt);
+    if(val&&Math.random()<.4) return bark('me',L.capture);
+  }
 }
 function storyCard(won,final){
   if(!G||!G.over) return;
@@ -658,8 +794,8 @@ function renderStory(){
 $('story').addEventListener('click',e=>{
   const b=e.target.closest('.chap');
   if(b&&!b.disabled){ const i=+b.dataset.i; if(G&&G.story===i&&!G.over) setTab('game'); else startStory(i); return; }
-  if(e.target.closest('#stPrologue')) dialogue(STORY.prologue,STORY.title,()=>{ progress.seen=true; saveProgress(); });
-  if(e.target.closest('#stEpilogue')) dialogue(STORY.epilogue,'Épilogue');
+  if(e.target.closest('#stPrologue')) scene(STORY.prologue,{},()=>{ progress.seen=true; saveProgress(); });
+  if(e.target.closest('#stEpilogue')) scene(STORY.epilogue,{});
 });
 
 /* ---------- sound (synthesized wood clicks) ---------- */
@@ -755,6 +891,7 @@ const Music=(()=>{
       g.gain.cancelScheduledValues(ac.currentTime); g.gain.setValueAtTime(g.gain.value,ac.currentTime); g.gain.linearRampToValueAtTime(0,ac.currentTime+.9);
       setTimeout(()=>g.disconnect(),1200);
     },
+    level(v){ if(out){ out.gain.cancelScheduledValues(ac.currentTime); out.gain.setValueAtTime(out.gain.value,ac.currentTime); out.gain.linearRampToValueAtTime(.9*v,ac.currentTime+1); } },
     get playing(){ return playing; }
   };
 })();
