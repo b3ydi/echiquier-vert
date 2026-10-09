@@ -710,7 +710,7 @@ function startStory(i,retry){
   setTab('game'); save();
   if(retry){ revealBoard(); return setTimeout(maybeAI,900); }
   const card={bg:ch.intro[0].bg,clear:true,caption:ch.place,card:{title:`Chapitre ${i+1}`,sub:`${ch.name}, ${ch.title}`},who:'',text:'',auto:2600};
-  const shots=[...(progress.seen?[]:STORY.prologue),...ch.intro,card];
+  const shots=[...(i===0?STORY.prologue:[]),...ch.intro,card];
   progress.seen=true; saveProgress();
   scene(shots,{},()=>{ if(G&&G.story===i){ revealBoard(); setTimeout(()=>{ if(G&&G.story===i) maybeAI(); },1000); } });
 }
@@ -896,32 +896,6 @@ const Music=(()=>{
   };
 })();
 
-/* ---------- Spotify player ---------- */
-const MUSIC_KEY='echiquier-vert.music';
-const DEFAULT_MUSIC='https://open.spotify.com/playlist/4XbBB2XdXXgtuMsgV8muR9';
-function spotifyEmbed(url){
-  const m=String(url||'').trim().match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(?:embed\/)?(playlist|album|track|artist|episode|show)\/([A-Za-z0-9]{10,})/);
-  return m?`https://open.spotify.com/embed/${m[1]}/${m[2]}?utm_source=generator&theme=0`:null;
-}
-let music={url:DEFAULT_MUSIC,hidden:false};
-try{ music={...music,...JSON.parse(localStorage.getItem(MUSIC_KEY)||'{}')}; }catch(e){}
-function saveMusic(){ try{ localStorage.setItem(MUSIC_KEY,JSON.stringify(music)); }catch(e){} }
-function renderMusic(){
-  const f=$('musicFrame'), src=spotifyEmbed(music.url)||spotifyEmbed(DEFAULT_MUSIC);
-  if(!music.hidden&&f.getAttribute('src')!==src) f.setAttribute('src',src);
-  f.hidden=music.hidden;
-  $('musicToggle').textContent=music.hidden?'Afficher':'Masquer';
-}
-$('musicToggle').onclick=()=>{ music.hidden=!music.hidden; saveMusic(); renderMusic(); };
-$('musicEdit').onclick=()=>{ const f=$('musicForm'); f.hidden=!f.hidden; if(!f.hidden){ $('musicUrl').value=music.url; $('musicUrl').select(); } $('musicErr').hidden=true; };
-$('musicForm').addEventListener('submit',e=>{
-  e.preventDefault();
-  const u=$('musicUrl').value;
-  if(!spotifyEmbed(u)){ $('musicErr').hidden=false; return; }
-  music.url=u.trim(); music.hidden=false; saveMusic();
-  $('musicForm').hidden=true; $('musicErr').hidden=true; renderMusic();
-});
-renderMusic();
 
 /* ---------- main menu ---------- */
 const menuEl=$('menu');
@@ -936,7 +910,7 @@ const menuEl=$('menu');
 })();
 function renderMenu(){
   const n=STORY.chapters.length, c=Math.min(progress.cleared,n);
-  $('miStorySub').textContent=c>=n?'Campagne terminée · rejouer un chapitre':progress.seen?`Continuer · chapitre ${c+1} sur ${n}`:'Nouvelle partie';
+  $('miStorySub').textContent=c>=n?'Campagne terminée · rejouer un chapitre':c?`Continuer · chapitre ${c+1} sur ${n}`:'Nouvelle partie';
   const live=G&&G.history.length&&!G.over;
   $('miResume').hidden=!live;
   if(live) $('miResumeSub').textContent=storyChapter()?`Chapitre ${G.story+1} contre ${storyChapter().name}`:G.mode==='ai'?`Contre l'ordinateur · ${LEVELS[G.level].name}`:'Partie à deux';
@@ -969,7 +943,7 @@ menuEl.addEventListener('keydown',e=>{
 document.addEventListener('keydown',e=>{ if(!menuEl.hidden&&menuEl.classList.contains('splash')&&!menuEl.contains(e.target)){ e.preventDefault(); menuReady(); } });
 menuEl.addEventListener('pointerover',e=>{ const b=e.target.closest('.mi,.tog'); if(b&&b!==menuEl._hov){ menuEl._hov=b; sound('hover'); } });
 menuEl.addEventListener('focusin',e=>{ if(e.target.closest('.mi,.tog')&&e.target!==menuEl._hov){ menuEl._hov=e.target; sound('hover'); } });
-$('miStory').onclick=()=>leaveMenu(()=>{ if(!progress.seen) startStory(0); else setTab('story'); });
+$('miStory').onclick=()=>leaveMenu(()=>{ if(progress.cleared>=STORY.chapters.length) setTab('story'); else startStory(progress.cleared); });
 $('miResume').onclick=()=>leaveMenu(()=>setTab('game'));
 $('miFree').onclick=()=>leaveMenu(()=>setTab('play'));
 $('miOptions').onclick=()=>{ const o=$('menuOpts'); o.hidden=!o.hidden; $('miOptions').setAttribute('aria-expanded',String(!o.hidden)); sound('hover'); };

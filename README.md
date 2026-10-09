@@ -26,7 +26,6 @@
 - **Confort de jeu** : glisser-déposer ou clic, aperçu des coups légaux, flèches et marques au clic droit.
 - **Analyse** : historique des coups navigable au clavier, export PGN en un clic.
 - **5 thèmes d'échiquier**, dont un thème « Geass » noir, violet et or.
-- **Musique** : lecteur Spotify intégré, avec votre propre playlist.
 - **Sons** synthétisés, partie sauvegardée automatiquement (on reprend là où on s'était arrêté).
 - **Responsive** : jouable sur ordinateur, tablette et téléphone.
 

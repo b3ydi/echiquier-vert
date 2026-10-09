@@ -142,18 +142,6 @@ button{font:inherit;color:inherit}
 .acts-row .ib.warn{background:#6b2b25;color:#fff}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:8px;font-weight:600;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .credit{color:var(--fg-3);font-size:11px;padding:0 12px 10px;text-align:center}
-.music{border-top:1px solid var(--line);padding:10px 10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--panel-2)}
-.music-head{display:flex;align-items:center;gap:8px}
-.music-head .lbl{flex:1}
-.music-head button{all:unset;cursor:pointer;font-size:12px;font-weight:700;color:var(--fg-2);padding:4px 8px;border-radius:5px;background:var(--raise)}
-.music-head button:hover{color:#fff;background:#45423f}
-.music-head button:focus-visible{outline:2px solid var(--accent)}
-.music iframe{display:block;width:100%;height:80px;border:0;border-radius:12px;background:#282828}
-.music form{display:flex;gap:6px}
-.music input{flex:1;min-width:0;background:var(--raise);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:8px 10px;font:inherit;font-size:13px}
-.music input:focus{outline:2px solid var(--accent);outline-offset:0}
-.music form button{all:unset;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;padding:8px 12px;border-radius:6px;font-size:13px}
-.music .err{color:#f08a7e;font-size:12px}
 
 /* Geass skin: black, royal purple, crimson and gold */
 :root[data-skin="geass"]{--bg:#0b0710;--panel:#17101f;--panel-2:#0f0a16;--raise:#2a1d3a;--line:#2e2240;--fg:#f4eefc;--fg-2:#cfc3e0;--fg-3:#9384a8;--accent:#b0262f;--accent-hi:#c93440;--accent-sh:#6e121a;--danger:#c81e3a}
