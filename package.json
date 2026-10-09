@@ -1,7 +1,7 @@
 {
   "name": "echiquier-vert",
   "version": "1.1.0",
-  "description": "Jeu d'échecs dans le navigateur : IA à 5 niveaux, mode 2 joueurs, pendules et thèmes.",
+  "description": "Code Geass : The Chess Game, fan game d'échecs dans le navigateur avec mode histoire, cinématiques et mode libre.",
   "private": true,
   "scripts": {
     "build": "node scripts/build.mjs",
