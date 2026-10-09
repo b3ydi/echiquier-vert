@@ -18,6 +18,7 @@
 ## Fonctionnalités
 
 - **Toutes les règles** : roque, prise en passant, promotion, pat, répétition, règle des 50 coups, matériel insuffisant.
+- **Écran titre** avec musique d'ambiance synthétisée et effets : Mode Histoire, Mode libre, Options.
 - **Mode histoire « Le Cercle du Roi Noir »** : un fan game à la Code Geass. Lelouch, piégé dans un cercle d'échecs clandestin, doit battre six maîtres de plus en plus forts pour retrouver sa liberté. Dialogues entre les matchs, progression sauvegardée et pouvoir Geass (le meilleur coup révélé, une fois par partie).
 - **Contre l'ordinateur**, 5 niveaux de difficulté. L'IA cherche en arrière-plan (Web Worker), l'interface ne fige jamais.
 - **À deux** sur le même écran.

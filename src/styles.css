@@ -225,3 +225,54 @@ button{font:inherit;color:inherit}
 @keyframes geassFlash{0%{transform:translate(-50%,-50%) scale(.2);opacity:1}100%{transform:translate(-50%,-50%) scale(1.6);opacity:0}}
 @media (max-width:520px){.vn-text{font-size:15px}.vn-box{padding:14px 14px 10px}}
 @media (prefers-reduced-motion:reduce){.vn{animation:none}.board.geass-flash::after{animation:none}}
+
+/* main menu: title screen over the whole app, always in the Geass palette */
+.menu{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));box-sizing:border-box;overflow:hidden auto;color:#f4eefc;outline:none;
+  background:radial-gradient(900px 600px at 50% 35%,#3a1660 0%,rgba(58,22,96,0) 65%),radial-gradient(700px 500px at 85% 100%,#4a0b1c 0%,rgba(74,11,28,0) 60%),#07040b;transition:opacity .4s ease,transform .4s ease}
+.menu.leaving{opacity:0;transform:scale(1.04)}
+.menu-bg{position:absolute;inset:0;pointer-events:none}
+.menu-ring{position:absolute;left:50%;top:38%;border-radius:50%;transform:translate(-50%,-50%)}
+.menu-ring.r1{width:min(760px,150vw);aspect-ratio:1;border:1px solid rgba(212,175,90,.18);animation:spin 90s linear infinite}
+.menu-ring.r2{width:min(560px,115vw);aspect-ratio:1;border:2px dashed rgba(224,48,74,.22);animation:spin 60s linear infinite reverse}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.menu-drift i{position:absolute;bottom:-90px;background-size:100%;opacity:.07;filter:brightness(0) invert(1);animation:drift linear infinite}
+@keyframes drift{from{transform:translateY(0) rotate(0)}to{transform:translateY(calc(-100vh - 180px)) rotate(200deg)}}
+.menu-inner{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;width:min(420px,100%)}
+.menu-title,.menu-sub{white-space:nowrap}
+.menu-emblem{width:112px;height:112px;filter:drop-shadow(0 0 18px rgba(224,48,74,.55));animation:emb 4s ease-in-out infinite}
+.emb-spin{transform-origin:60px 60px;animation:spinc 14s linear infinite}
+@keyframes spinc{to{transform:rotate(360deg)}}
+@keyframes emb{50%{filter:drop-shadow(0 0 28px rgba(224,48,74,.8))}}
+.menu-title{margin:14px 0 0;font-family:"Cinzel",Georgia,serif;font-weight:800;font-size:clamp(34px,10vw,64px);line-height:1.02;letter-spacing:.04em;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff6dc 0%,#e6c477 45%,#a8792c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 #2b0f45) drop-shadow(0 0 22px rgba(212,175,90,.35))}
+.menu-sub{margin:8px 0 0;font-family:"Cinzel",Georgia,serif;font-size:clamp(14px,3.6vw,18px);letter-spacing:.32em;text-transform:uppercase;color:#e0304a;text-shadow:0 0 12px rgba(224,48,74,.6)}
+.menu-press{margin:44px 0 0;font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:13px;color:#cfc3e0;animation:blink 1.6s ease-in-out infinite}
+.menu-list{display:none;flex-direction:column;gap:10px;width:100%;margin-top:34px}
+.menu.ready .menu-press{display:none}
+.menu.ready .menu-list{display:flex}
+.menu.ready .mi,.menu.ready .menu-opts{animation:rise .45s cubic-bezier(.2,.9,.3,1) both}
+.menu.ready .mi:nth-child(2){animation-delay:.06s}.menu.ready .mi:nth-child(3){animation-delay:.12s}.menu.ready .mi:nth-child(4){animation-delay:.18s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+.mi{all:unset;box-sizing:border-box;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:2px;padding:12px 18px;border-radius:10px;text-align:left;background:rgba(32,20,48,.78);border:1px solid #3d2b55;transition:transform .12s,border-color .12s,background .12s;overflow:hidden}
+.mi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#d4af5a;transform:scaleY(0);transition:transform .15s}
+.mi:hover,.mi:focus-visible{background:rgba(58,36,86,.9);border-color:#d4af5a;transform:translateX(4px)}
+.mi:hover::before,.mi:focus-visible::before{transform:none}
+.mi-t{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:19px;letter-spacing:.04em}
+.mi small{color:#a898bf;font-size:12.5px;font-weight:600}
+.mi.primary{padding:16px 20px;background:linear-gradient(135deg,#8a1626,#4c0b3e 60%,#2b0f45);border-color:#d4af5a;box-shadow:0 0 30px rgba(224,48,74,.35)}
+.mi.primary .mi-t{font-size:24px;color:#fff3d6}
+.mi.primary small{color:#f3c9cf}
+.mi.primary:hover,.mi.primary:focus-visible{background:linear-gradient(135deg,#a81c2f,#5e0e4c 60%,#3a1460)}
+.menu-opts{display:flex;flex-direction:column;gap:6px;padding:4px 0 0}
+.tog{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-radius:8px;background:rgba(32,20,48,.6);font-weight:700;font-size:14px}
+.tog:focus-visible{outline:2px solid #d4af5a}
+.tog i{width:38px;height:22px;border-radius:11px;background:#3d2b55;position:relative;transition:background .15s}
+.tog i::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#cfc3e0;transition:transform .15s}
+.tog[aria-checked="true"] i{background:#b0262f}
+.tog[aria-checked="true"] i::after{transform:translateX(16px);background:#fff}
+.menu-foot{position:relative;margin-top:28px;font-size:11.5px;color:#7d6f93;text-align:center}
+.tabs .tab-menu{flex:none;width:44px;padding:0;color:var(--fg-2)}
+.tabs .tab-menu:hover{color:var(--fg)}
+.tabs .tab-menu svg{width:20px;height:20px}
+@media (max-height:620px){.menu-emblem{width:72px;height:72px}.menu-list{margin-top:20px}.menu-press{margin-top:24px}}
+@media (prefers-reduced-motion:reduce){.menu-ring,.menu-drift i,.emb-spin,.menu-emblem,.menu-press,.menu.ready .mi,.menu.ready .menu-opts{animation:none}.menu{transition:none}}
