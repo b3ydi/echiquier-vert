@@ -703,12 +703,11 @@ function revealBoard(){
   const app=$('app'); app.classList.remove('reveal'); void app.offsetWidth; app.classList.add('reveal'); Music.level(.35);
   sound('select'); setTimeout(()=>app.classList.remove('reveal'),1600);
 }
-function startStory(i,retry){
+function startStory(i){
   const ch=STORY.chapters[i]; if(!ch||i>progress.cleared) return;
   ensureAudio();
   newGame({mode:'ai',level:ch.level,color:ch.color,tc:ch.tc,story:i});
   setTab('game'); save();
-  if(retry){ revealBoard(); return setTimeout(maybeAI,900); }
   const card={bg:ch.intro[0].bg,clear:true,caption:ch.place,card:{title:`Chapitre ${i+1}`,sub:`${ch.name}, ${ch.title}`},who:'',text:'',auto:2600};
   const shots=[...(i===0?STORY.prologue:[]),...ch.intro,card];
   progress.seen=true; saveProgress();
@@ -772,7 +771,7 @@ function storyCard(won,final){
   d.innerHTML=`<div class="card" role="dialog" aria-label="Fin du chapitre"><header class="${won?'':'lose'}"><h2>${esc(h)}</h2><p>${esc(p)}</p></header>
     <div class="acts"><button class="btn-play" id="mAgain">${a}</button><button class="btn-sec" id="mClose">Revoir la partie</button></div></div>`;
   board.appendChild(d);
-  $('mAgain').onclick=()=>{ closeModal(); if(final) setTab('story'); else if(won) startStory(i+1); else startStory(i,true); };
+  $('mAgain').onclick=()=>{ closeModal(); if(final) setTab('story'); else startStory(won?i+1:i); };
   $('mClose').onclick=closeModal;
   d.addEventListener('pointerdown',e=>{ if(e.target===d) closeModal(); e.stopPropagation(); });
   $('mAgain').focus();
@@ -910,7 +909,8 @@ const menuEl=$('menu');
 })();
 function renderMenu(){
   const n=STORY.chapters.length, c=Math.min(progress.cleared,n);
-  $('miStorySub').textContent=c>=n?'Campagne terminée · rejouer un chapitre':c?`Continuer · chapitre ${c+1} sur ${n}`:'Nouvelle partie';
+  const sc=G&&!G.over&&storyChapter();
+  $('miStorySub').textContent=sc?`Reprendre · chapitre ${G.story+1} contre ${sc.name}`:c>=n?'Campagne terminée · rejouer un chapitre':c?`Continuer · chapitre ${c+1} sur ${n}`:'Nouvelle partie';
   const live=G&&G.history.length&&!G.over;
   $('miResume').hidden=!live;
   if(live) $('miResumeSub').textContent=storyChapter()?`Chapitre ${G.story+1} contre ${storyChapter().name}`:G.mode==='ai'?`Contre l'ordinateur · ${LEVELS[G.level].name}`:'Partie à deux';
@@ -943,7 +943,8 @@ menuEl.addEventListener('keydown',e=>{
 document.addEventListener('keydown',e=>{ if(!menuEl.hidden&&menuEl.classList.contains('splash')&&!menuEl.contains(e.target)){ e.preventDefault(); menuReady(); } });
 menuEl.addEventListener('pointerover',e=>{ const b=e.target.closest('.mi,.tog'); if(b&&b!==menuEl._hov){ menuEl._hov=b; sound('hover'); } });
 menuEl.addEventListener('focusin',e=>{ if(e.target.closest('.mi,.tog')&&e.target!==menuEl._hov){ menuEl._hov=e.target; sound('hover'); } });
-$('miStory').onclick=()=>leaveMenu(()=>{ if(progress.cleared>=STORY.chapters.length) setTab('story'); else startStory(progress.cleared); });
+// A story match already under way is resumed as is; every new match opens with its cinematic.
+$('miStory').onclick=()=>leaveMenu(()=>{ if(G&&!G.over&&storyChapter()) setTab('game'); else if(progress.cleared>=STORY.chapters.length) setTab('story'); else startStory(progress.cleared); });
 $('miResume').onclick=()=>leaveMenu(()=>setTab('game'));
 $('miFree').onclick=()=>leaveMenu(()=>setTab('play'));
 $('miOptions').onclick=()=>{ const o=$('menuOpts'); o.hidden=!o.hidden; $('miOptions').setAttribute('aria-expanded',String(!o.hidden)); sound('hover'); };
