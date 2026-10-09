@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Échiquier Vert</title>
+<meta name="description" content="Jeu d'échecs dans le navigateur : contre l'ordinateur (5 niveaux) ou à deux, avec pendules, thèmes et analyse des coups.">
+<meta name="theme-color" content="#302e2b">
+<meta property="og:title" content="Échiquier Vert">
+<meta property="og:description" content="Jouez aux échecs dans le navigateur, contre l'ordinateur ou à deux.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>body{margin:0}</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="col">
+    <div class="player" id="pTop"></div>
+    <div class="board" id="board" data-theme-b="green" aria-label="Échiquier">
+      <div class="squares" id="squares"></div>
+      <div class="pieces" id="pieces"></div>
+      <svg class="arrows" id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
+    </div>
+    <div class="player" id="pBot"></div>
+  </div>
+
+  <aside class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabPlayBtn" aria-selected="true" data-tab="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Nouvelle partie</button>
+      <button role="tab" id="tabGameBtn" aria-selected="false" data-tab="game"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Partie</button>
+    </div>
+
+    <section class="tab" id="tabPlay" role="tabpanel">
+      <div class="setup">
+        <div class="field">
+          <span class="lbl">Adversaire</span>
+          <div class="seg" id="optMode">
+            <button class="opt" id="modeAi" data-v="ai"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6" stroke-linecap="round"/></svg>Ordinateur</button>
+            <button class="opt" id="modePvp" data-v="pvp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="9" r="2.5"/><path d="M2.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5M14 14.3c.8-.4 1.6-.6 2.5-.6 2.1 0 3.9 1.5 4.6 4.3" stroke-linecap="round"/></svg>2 joueurs</button>
+          </div>
+        </div>
+        <div class="field" id="fLevel">
+          <span class="lbl">Niveau de l'ordinateur</span>
+          <div class="lv" id="optLevel"></div>
+        </div>
+        <div class="field" id="fColor">
+          <span class="lbl">Je joue avec</span>
+          <div class="seg" id="optColor">
+            <button class="opt" data-v="w"><i class="pi p-wK"></i>Blancs</button>
+            <button class="opt" data-v="r"><i class="pi" style="background:linear-gradient(90deg,#fff 50%,#1a1a1a 50%);border-radius:50%;width:16px;height:16px;box-shadow:0 0 0 1.5px #888"></i>Au hasard</button>
+            <button class="opt" data-v="b"><i class="pi p-bK"></i>Noirs</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="lbl">Cadence</span>
+          <div class="chips" id="optTc"></div>
+        </div>
+        <div class="field">
+          <span class="lbl">Échiquier</span>
+          <div class="swatches" id="optTheme"></div>
+        </div>
+        <button class="btn-play" id="btnStart">Jouer</button>
+      </div>
+    </section>
+
+    <section class="tab" id="tabGame" role="tabpanel" hidden>
+      <div class="status" id="status"></div>
+      <div class="moves" id="moves"></div>
+      <div class="nav">
+        <button class="ib" id="navFirst" aria-label="Début de la partie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6v12M18 6l-6 6 6 6"/></svg></button>
+        <button class="ib" id="navPrev" aria-label="Coup précédent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ib" id="navNext" aria-label="Coup suivant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ib" id="navLast" aria-label="Position actuelle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6v12M6 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="acts-row">
+        <button class="ib" id="btnUndo" title="Annuler le dernier coup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Annuler</button>
+        <button class="ib" id="btnFlip" title="Retourner l'échiquier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V5M4 8l3-3 3 3M17 4v15M14 16l3 3 3-3"/></svg>Retourner</button>
+        <button class="ib" id="btnResign" title="Abandonner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Abandon</span></button>
+      </div>
+      <div class="acts-row">
+        <button class="ib" id="btnSound" title="Son"></button>
+        <button class="ib" id="btnPgn" title="Copier la partie au format PGN"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Copier PGN</button>
+        <button class="ib" id="btnNew" title="Nouvelle partie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nouvelle</button>
+      </div>
+      <div class="credit">Pièces : Colin M.L. Burnett (CC BY-SA 3.0)</div>
+    </section>
+  <div class="music" id="music">
+      <div class="music-head"><svg width="18" height="18" viewBox="0 0 24 24" fill="#1ed760" aria-hidden="true"><circle cx="12" cy="12" r="11"/><path d="M6.5 9.3c3.8-1.1 8-.8 11.2 1M7.2 12.6c3.1-.9 6.6-.6 9.3.9M7.8 15.7c2.5-.7 5.1-.5 7.3.7" stroke="#121212" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="lbl">Musique</span><button type="button" id="musicEdit">Changer</button><button type="button" id="musicToggle">Masquer</button></div>
+      <iframe id="musicFrame" title="Lecteur Spotify" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+      <form id="musicForm" hidden><input id="musicUrl" type="text" inputmode="url" autocomplete="off" placeholder="Collez un lien Spotify (playlist, album, titre)" aria-label="Lien Spotify"><button type="submit">OK</button></form>
+      <div class="err" id="musicErr" hidden>Ce lien n'est pas reconnu. Copiez-le depuis Spotify avec « Partager › Copier le lien ».</div>
+    </div>
+  </aside>
+</div>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
