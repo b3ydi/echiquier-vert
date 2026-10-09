@@ -65,13 +65,13 @@ const REASONS={checkmate:'par échec et mat',stalemate:'par pat',fifty:'par la r
 const VALS={p:1,n:3,b:3,r:5,q:9};
 
 let settings={mode:'ai',level:2,color:'w',tc:0,theme:'green',sound:true};
-let G=null, sel=null, legalCache=null, hoverSq=-1, drag=null, promoOpen=false, thinking=false, aiReq=0, aiMinAt=0, lastTick=Date.now();
+let G=null, hintMove=null, hintReq=0, sel=null, legalCache=null, hoverSq=-1, drag=null, promoOpen=false, thinking=false, aiReq=0, aiMinAt=0, lastTick=Date.now();
 const marks=new Set(); let arrows=[]; let rightFrom=-1;
 
 /* ---------- storage ---------- */
 const KEY='echiquier-vert.v1';
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(serialize())); }catch(e){} }
-function serialize(){ return G?{settings,cfg:G.cfg,ucis:G.history.map(h=>uci(h.m)),clocks:G.clocks,over:G.over,orient:G.orient}:{settings}; }
+function serialize(){ return G?{settings,cfg:G.cfg,ucis:G.history.map(h=>uci(h.m)),clocks:G.clocks,over:G.over,orient:G.orient,geass:G.geass}:{settings}; }
 const uci=m=>E.sqName(m.from)+E.sqName(m.to)+(m.promo?m.promo.toLowerCase():'');
 
 /* ---------- board scaffolding ---------- */
@@ -98,7 +98,9 @@ function newGame(cfg,ucis){
   const tc=TCS[cfg.tc]||TCS[0];
   G={game:new E.Game(),history:[],fens:[E.START],view:0,cfg:{...cfg,color:human},tc,human,
      mode:cfg.mode,level:cfg.level,aiColor:cfg.mode==='ai'?(human==='w'?'b':'w'):null,
-     clocks:{w:tc.base*1000,b:tc.base*1000},over:null,orient:cfg.mode==='ai'?human:'w',date:new Date()};
+     clocks:{w:tc.base*1000,b:tc.base*1000},over:null,orient:cfg.mode==='ai'?human:'w',date:new Date(),
+     story:cfg.story!=null&&STORY.chapters[cfg.story]?cfg.story:null,geass:1};
+  hintMove=null; hintReq++;
   sel=null; legalCache=null; marks.clear(); arrows=[];
   if(ucis) for(const u of ucis){ const m=G.game.moves().find(x=>uci(x)===u); if(!m) break; commit(m,null,true); }
   G.view=G.history.length; lastTick=Date.now();
@@ -120,7 +122,7 @@ function commit(m,anim,silent){
   G.game.play(m);
   if(G.tc.base) G.clocks[mover]+=G.tc.inc*1000;
   G.history.push({m,san}); G.fens.push(G.game.fen());
-  G.view=G.history.length; legalCache=null; sel=null; lastTick=Date.now();
+  G.view=G.history.length; legalCache=null; sel=null; lastTick=Date.now(); hintMove=null; hintReq++;
   const st=G.game.status();
   if(silent){ if(st.over) G.over=st; return; }
   marks.clear(); arrows=[];
@@ -130,10 +132,10 @@ function commit(m,anim,silent){
   if(st.over) endGame(st); else maybeAI();
   save();
 }
-function endGame(st){ G.over=st; thinking=false; aiReq++; renderAll(); save(); setTimeout(showModal,350); }
+function endGame(st){ G.over=st; storyResult(st); thinking=false; aiReq++; renderAll(); save(); setTimeout(showModal,350); }
 
 function takeback(){
-  if(!G.history.length) return;
+  if(!G.history.length||G.story!=null) return;
   aiReq++; thinking=false;
   let n=1;
   if(G.mode==='ai' && G.game.turn===G.human) n=2;
@@ -153,11 +155,11 @@ function resign(){
 }
 
 /* ---------- computer ---------- */
-const workerSrc=`const E=(${ENGINE.toString()})();onmessage=e=>{let r=null;try{r=E.search(e.data.fen,e.data.opts);}catch(err){}postMessage({id:e.data.id,r});};`;
+const workerSrc=`const E=(${ENGINE.toString()})();onmessage=e=>{let r=null;try{r=E.search(e.data.fen,e.data.opts);}catch(err){}postMessage({id:e.data.id,kind:e.data.kind,r});};`;
 let worker=null;
 try{
   worker=new Worker(URL.createObjectURL(new Blob([workerSrc],{type:'text/javascript'})));
-  worker.onmessage=e=>onAI(e.data.id,e.data.r);
+  worker.onmessage=e=>e.data.kind==='hint'?onHint(e.data.id,e.data.r):onAI(e.data.id,e.data.r);
   worker.onerror=()=>{ worker=null; if(thinking){ thinking=false; maybeAI(); } };
 }catch(e){ worker=null; }
 function maybeAI(){
@@ -178,6 +180,22 @@ function onAI(id,r){
     G.view=G.history.length;
     commit(m,true);
   },Math.max(0,aiMinAt-Date.now()));
+}
+
+/* Geass: once per story match, the engine reveals the best move for Lelouch. */
+const HINT_OPTS={time:1200};
+function useGeass(){
+  if(!G||G.story==null||!G.geass||!canInteract()||thinking) return;
+  G.geass=0; save();
+  const id=++hintReq, fen=G.game.fen();
+  board.classList.remove('geass-flash'); board.getBoundingClientRect(); board.classList.add('geass-flash');
+  renderNav(); toast('Geass : Lelouch lit le meilleur coup…');
+  if(worker) worker.postMessage({id,kind:'hint',fen,opts:HINT_OPTS});
+  else setTimeout(()=>{ if(id===hintReq) onHint(id,E.search(fen,HINT_OPTS)); },60);
+}
+function onHint(id,r){
+  if(id!==hintReq||!r) return;
+  hintMove=[r.from,r.to]; drawArrows();
 }
 
 /* ---------- clocks ---------- */
@@ -246,12 +264,14 @@ function animate(m){
 }
 function drawArrows(){
   let s='<defs><marker id="ah" viewBox="0 0 10 10" refX="3" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgba(255,170,0,.85)"/></marker></defs>';
-  for(const [a,b] of arrows){
+  const list=arrows.map(a=>[...a,'rgba(255,170,0,.85)','ah']);
+  if(hintMove&&isLive()){ list.push([...hintMove,'rgba(226,24,64,.9)','ahg']); s+='<defs><marker id="ahg" viewBox="0 0 10 10" refX="3" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgba(226,24,64,.9)"/></marker></defs>'; }
+  for(const [a,b,col,mk] of list){
     const [ax,ay]=xy(a),[bx,by]=xy(b);
     const x1=ax+.5,y1=ay+.5,x2=bx+.5,y2=by+.5, len=Math.hypot(x2-x1,y2-y1);
     const ex=x2-(x2-x1)/len*.38, ey=y2-(y2-y1)/len*.38;
     const sx=x1+(x2-x1)/len*.2, sy=y1+(y2-y1)/len*.2;
-    s+=`<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="rgba(255,170,0,.85)" stroke-width=".17" marker-end="url(#ah)"/>`;
+    s+=`<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${col}" stroke-width=".17" marker-end="url(#${mk})"/>`;
   }
   arrowsEl.innerHTML=s;
 }
@@ -270,11 +290,14 @@ function playerBar(color){
   const adv=color==='w'?mat:-mat;
   if(adv>0) caps+=`<b>+${adv}</b>`;
   let name, tag='';
-  if(G.mode==='ai'){ if(color===G.human){ name='Vous'; } else { name='Ordinateur'; tag=LEVELS[G.level].name; } }
+  const ch=storyChapter();
+  if(ch){ if(color===G.human){ name='Lelouch'; } else { name=ch.name; tag=ch.title; } }
+  else if(G.mode==='ai'){ if(color===G.human){ name='Vous'; } else { name='Ordinateur'; tag=LEVELS[G.level].name; } }
   else name=color==='w'?'Blancs':'Noirs';
   const on=!G.over&&G.game.turn===color&&G.history.length>=1;
   const clock=G.tc.base?`<div class="clock ${color}${on?' on':''}${G.clocks[color]<20000?' low':''}" data-c="${color}">${fmt(G.clocks[color])}</div>`:'';
-  return `<div class="avatar p-${color+(G.mode==='ai'&&color!==G.human?'Q':'K')}"></div>
+  const av=ch?(color===G.human?'K':ch.piece):(G.mode==='ai'&&color!==G.human?'Q':'K');
+  return `<div class="avatar p-${color+av}"></div>
     <div class="pinfo"><div class="pname">${name}${tag?`<small>${tag}</small>`:''}</div><div class="caps">${caps}</div></div>${clock}`;
 }
 function renderPlayers(){
@@ -291,6 +314,7 @@ function renderClocks(){
 function resultTitle(st){
   if(st.result==='1/2-1/2') return 'Partie nulle';
   const win=st.result==='1-0'?'w':'b';
+  if(storyChapter()) return win===G.human?'Victoire !':storyChapter().name+' gagne';
   if(G.mode==='ai') return win===G.human?'Vous avez gagné !':"L'ordinateur gagne";
   return win==='w'?'Les Blancs gagnent':'Les Noirs gagnent';
 }
@@ -298,7 +322,7 @@ function renderStatus(){
   const el=$('status'); const t=G.game.turn;
   let dot=t==='w'?'#fff':'#1a1a1a', txt;
   if(G.over){ txt=resultTitle(G.over)+' '+REASONS[G.over.reason]; dot='#81b64c'; }
-  else if(G.mode==='ai') txt=t===G.human?(G.game.inCheck()?'Échec ! À vous de jouer':'À vous de jouer'):"L'ordinateur réfléchit";
+  else if(G.mode==='ai') txt=t===G.human?(G.game.inCheck()?'Échec ! À vous de jouer':'À vous de jouer'):(storyChapter()?storyChapter().name:"L'ordinateur")+' réfléchit';
   else txt=(t==='w'?'Aux Blancs':'Aux Noirs')+(G.game.inCheck()?' · échec !':' de jouer');
   el.innerHTML=`<span class="dot" style="background:${dot}"></span><span>${txt}</span>${thinking?'<span class="think"><i></i><i></i><i></i></span>':''}`;
 }
@@ -317,7 +341,10 @@ function renderMoves(){
 function renderNav(){
   $('navFirst').disabled=$('navPrev').disabled=G.view===0;
   $('navNext').disabled=$('navLast').disabled=isLive();
-  $('btnUndo').disabled=!G.history.length;
+  $('btnUndo').disabled=!G.history.length||G.story!=null;
+  $('geassRow').hidden=G.story==null;
+  $('btnGeass').disabled=!G.geass||!!G.over;
+  $('btnGeass').querySelector('span').textContent=G.geass?'Geass (1)':'Geass utilisé';
   $('btnResign').disabled=!!G.over||!G.history.length;
 }
 function renderAll(anim){ renderBoard(anim); renderPlayers(); renderStatus(); renderMoves(); renderNav(); }
@@ -335,6 +362,7 @@ function setView(v){
 function showModal(){
   if(!G.over) return;
   closeModal();
+  if(G.story!=null) return showStoryEnd();
   const st=G.over, win=st.result==='1-0'?'w':st.result==='0-1'?'b':null;
   const cls=!win?'draw':(G.mode==='ai'&&win!==G.human)?'lose':'';
   const d=document.createElement('div'); d.className='modal'; d.id='modal';
@@ -447,7 +475,7 @@ board.addEventListener('pointerup',e=>{
 board.addEventListener('pointercancel',e=>{ if(drag&&e.pointerId===drag.id){ drag=null; hoverSq=-1; renderBoard(); } });
 
 document.addEventListener('keydown',e=>{
-  if(!G||e.target.closest('input,textarea,select')) return;
+  if(!G||$('vn')||e.target.closest('input,textarea,select')) return;
   if(e.key==='ArrowLeft'){ setView(G.view-1); e.preventDefault(); }
   else if(e.key==='ArrowRight'){ setView(G.view+1); e.preventDefault(); }
   else if(e.key==='ArrowUp'||e.key==='Home'){ setView(0); e.preventDefault(); }
@@ -464,6 +492,7 @@ function flip(){ G.orient=G.orient==='w'?'b':'w'; renderBoard(); renderPlayers()
 $('btnFlip').onclick=flip;
 $('btnUndo').onclick=takeback;
 $('btnResign').onclick=resign;
+$('btnGeass').onclick=useGeass;
 $('btnNew').onclick=()=>setTab('play');
 $('btnPgn').onclick=async()=>{
   const pgn=toPgn();
@@ -472,10 +501,11 @@ $('btnPgn').onclick=async()=>{
 };
 function toPgn(){
   const d=G.date, ds=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-  const nm=c=>G.mode==='ai'?(c===G.human?'Vous':'Ordinateur ('+LEVELS[G.level].name+')'):(c==='w'?'Blancs':'Noirs');
+  const ch=storyChapter();
+  const nm=c=>ch?(c===G.human?'Lelouch':ch.name+' ('+ch.title+')'):G.mode==='ai'?(c===G.human?'Vous':'Ordinateur ('+LEVELS[G.level].name+')'):(c==='w'?'Blancs':'Noirs');
   const res=G.over?G.over.result:'*';
   let mv=''; G.history.forEach((h,i)=>{ if(i%2===0) mv+=(i/2+1)+'. '; mv+=h.san+' '; });
-  return `[Event "Partie amicale"]\n[Date "${ds}"]\n[White "${nm('w')}"]\n[Black "${nm('b')}"]\n[Result "${res}"]\n\n${mv}${res}\n`;
+  return `[Event "${ch?STORY.title+' · chapitre '+(G.story+1):'Partie amicale'}"]\n[Date "${ds}"]\n[White "${nm('w')}"]\n[Black "${nm('b')}"]\n[Result "${res}"]\n\n${mv}${res}\n`;
 }
 let toastT=0;
 function toast(msg){
@@ -484,18 +514,20 @@ function toast(msg){
 }
 
 function applySkin(){
-  board.dataset.themeB=settings.theme;
-  if(settings.theme==='geass') document.documentElement.dataset.skin='geass';
+  const theme=G&&G.story!=null?'geass':settings.theme;
+  board.dataset.themeB=theme;
+  if(theme==='geass') document.documentElement.dataset.skin='geass';
   else document.documentElement.removeAttribute('data-skin');
 }
 
 /* ---------- tabs & setup ---------- */
 function setTab(t){
-  $('tabPlay').hidden=t!=='play'; $('tabGame').hidden=t!=='game';
-  $('tabPlayBtn').setAttribute('aria-selected',t==='play'); $('tabGameBtn').setAttribute('aria-selected',t==='game');
+  for(const k of ['Play','Story','Game']){ $('tab'+k).hidden=t!==k.toLowerCase(); $('tab'+k+'Btn').setAttribute('aria-selected',t===k.toLowerCase()); }
+  if(t==='story') renderStory();
 }
 $('tabPlayBtn').onclick=()=>setTab('play');
 $('tabGameBtn').onclick=()=>setTab('game');
+$('tabStoryBtn').onclick=()=>setTab('story');
 
 $('optLevel').innerHTML=LEVELS.map((l,i)=>`<button class="opt" data-v="${i}"><span>${l.name}</span><span class="dots">${[0,1,2,3,4].map(k=>`<i class="${k<=i?'on':''}"></i>`).join('')}</span></button>`).join('');
 $('optTc').innerHTML=TCS.map((t,i)=>`<button class="opt" data-v="${i}">${t.label}</button>`).join('');
@@ -519,6 +551,115 @@ function bindOpt(id,key,num){
 bindOpt('optMode','mode'); bindOpt('optLevel','level',true); bindOpt('optColor','color'); bindOpt('optTc','tc',true); bindOpt('optTheme','theme');
 $('btnStart').onclick=()=>{ ensureAudio(); startFromSettings(); };
 $('btnSound').onclick=()=>{ settings.sound=!settings.sound; renderSetup(); save(); if(settings.sound){ ensureAudio(); sound('move'); } };
+
+/* ---------- story mode ---------- */
+const STORY_KEY='echiquier-vert.story';
+let progress={cleared:0,seen:false};
+try{ progress={...progress,...JSON.parse(localStorage.getItem(STORY_KEY)||'{}')}; }catch(e){}
+function saveProgress(){ try{ localStorage.setItem(STORY_KEY,JSON.stringify(progress)); }catch(e){} }
+function storyChapter(){ return G&&G.story!=null?STORY.chapters[G.story]:null; }
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function humanWon(st){ return st.result===(G.human==='w'?'1-0':'0-1'); }
+function storyResult(st){
+  if(G.story==null||!humanWon(st)) return;
+  if(G.story+1>progress.cleared){ progress.cleared=G.story+1; saveProgress(); }
+}
+
+let vnClose=null;
+function dialogue(lines,caption,done){
+  if(vnClose) vnClose(true);
+  let i=0, typing=null;
+  const d=document.createElement('div'); d.className='vn'; d.id='vn';
+  d.setAttribute('role','dialog'); d.setAttribute('aria-modal','true'); d.setAttribute('aria-label','Dialogue');
+  d.innerHTML=`<div class="vn-box" tabindex="-1">${caption?`<div class="vn-cap">${esc(caption)}</div>`:''}<div class="vn-who"></div><p class="vn-text" aria-live="polite"></p><div class="vn-foot"><span class="vn-count"></span><button type="button" class="vn-skip">Passer</button><button type="button" class="vn-next"></button></div></div>`;
+  document.body.appendChild(d);
+  const who=d.querySelector('.vn-who'), txt=d.querySelector('.vn-text'), nextBtn=d.querySelector('.vn-next');
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function show(){
+    const l=lines[i];
+    who.textContent=l.who; who.hidden=!l.who; d.classList.toggle('narr',!l.who);
+    d.querySelector('.vn-count').textContent=`${i+1} / ${lines.length}`;
+    nextBtn.textContent=i===lines.length-1?'Continuer ▸':'Suivant ▸';
+    clearInterval(typing); typing=null;
+    if(reduce){ txt.textContent=l.text; return; }
+    let n=0; txt.textContent='';
+    typing=setInterval(()=>{ n+=2; txt.textContent=l.text.slice(0,n); if(n>=l.text.length){ clearInterval(typing); typing=null; } },16);
+  }
+  function next(){
+    if(typing){ clearInterval(typing); typing=null; txt.textContent=lines[i].text; return; }
+    if(++i>=lines.length) finish(); else show();
+  }
+  function finish(silent){
+    clearInterval(typing); d.remove(); document.removeEventListener('keydown',key,true); vnClose=null;
+    if(!silent&&done) done();
+  }
+  function key(e){
+    if(e.target.closest&&e.target.closest('.vn-skip')) return;
+    if(e.key==='Enter'||e.key===' '||e.key==='ArrowRight'){ e.preventDefault(); e.stopPropagation(); next(); }
+    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); finish(); }
+  }
+  d.addEventListener('click',e=>{ if(e.target.closest('.vn-skip')) finish(); else next(); });
+  document.addEventListener('keydown',key,true);
+  vnClose=finish;
+  show(); d.querySelector('.vn-box').focus();
+}
+
+function startStory(i,retry){
+  const ch=STORY.chapters[i]; if(!ch||i>progress.cleared) return;
+  ensureAudio();
+  newGame({mode:'ai',level:ch.level,color:ch.color,tc:ch.tc,story:i});
+  setTab('game'); save();
+  if(retry) return maybeAI();
+  const intro=()=>dialogue(ch.intro,`Chapitre ${i+1} · ${ch.place}`,()=>{ if(G&&G.story===i) maybeAI(); });
+  if(progress.seen) return intro();
+  progress.seen=true; saveProgress();
+  dialogue(STORY.prologue,STORY.title,intro);
+}
+function showStoryEnd(){
+  const st=G.over, i=G.story, ch=STORY.chapters[i], won=humanWon(st), last=i===STORY.chapters.length-1;
+  const lines=won?ch.win:st.result==='1/2-1/2'?[{who:ch.short,text:"Une nulle ? Le Cercle ne libère que les vainqueurs. Recommence."}]:ch.lose;
+  dialogue(lines,'',()=>{
+    if(won&&last) dialogue(STORY.epilogue,'Épilogue',()=>storyCard(true,true));
+    else storyCard(won,false);
+  });
+}
+function storyCard(won,final){
+  if(!G||!G.over) return;
+  closeModal();
+  const st=G.over, i=G.story, ch=STORY.chapters[i];
+  let h,p,a;
+  if(final){ h='Liberté retrouvée'; p='Le Cercle du Roi Noir est tombé.'; a='Chapitres'; }
+  else if(won){ h=`Chapitre ${i+1} remporté`; p=`${ch.name}, ${ch.title}, s'incline.`; a='Chapitre suivant'; }
+  else { h=resultTitle(st); p=st.result==='1/2-1/2'?"Le Cercle n'accepte que la victoire.":REASONS[st.reason]; a='Réessayer'; }
+  const d=document.createElement('div'); d.className='modal'; d.id='modal';
+  d.innerHTML=`<div class="card" role="dialog" aria-label="Fin du chapitre"><header class="${won?'':'lose'}"><h2>${esc(h)}</h2><p>${esc(p)}</p></header>
+    <div class="acts"><button class="btn-play" id="mAgain">${a}</button><button class="btn-sec" id="mClose">Revoir la partie</button></div></div>`;
+  board.appendChild(d);
+  $('mAgain').onclick=()=>{ closeModal(); if(final) setTab('story'); else if(won) startStory(i+1); else startStory(i,true); };
+  $('mClose').onclick=closeModal;
+  d.addEventListener('pointerdown',e=>{ if(e.target===d) closeModal(); e.stopPropagation(); });
+  $('mAgain').focus();
+}
+function renderStory(){
+  const n=STORY.chapters.length, done=progress.cleared>=n;
+  let s=`<div class="story-head"><h3>${esc(STORY.title)}</h3><p>Piégé dans un cercle de jeu clandestin, Lelouch doit battre ses six maîtres pour regagner sa liberté et retrouver sa vie de lycéen.</p>
+    <div class="story-prog"><i style="width:${Math.round(Math.min(progress.cleared,n)/n*100)}%"></i></div><small>${Math.min(progress.cleared,n)} / ${n} adversaires vaincus</small></div><ol class="chaps">`;
+  STORY.chapters.forEach((ch,i)=>{
+    const beaten=i<progress.cleared, open=i<=progress.cleared, cur=G&&G.story===i&&!G.over;
+    s+=`<li><button class="chap${beaten?' beaten':''}${cur?' cur':''}" data-i="${i}" ${open?'':'disabled'}>
+      <i class="pi p-${ch.color==='w'?'b':'w'}${ch.piece}"></i>
+      <span class="ci"><b>${open?esc(ch.name):'???'}</b><small>Chapitre ${i+1} · ${open?esc(ch.title)+' · '+LEVELS[ch.level].name:'verrouillé'}</small></span>
+      <span class="badge">${beaten?'✓':cur?'En cours':open?'Jouer':'🔒'}</span></button></li>`;
+  });
+  s+=`</ol><div class="story-acts"><button class="btn-sec" id="stPrologue">Revoir le prologue</button>${done?'<button class="btn-sec" id="stEpilogue">Revoir l\'épilogue</button>':''}</div>`;
+  $('story').innerHTML=s;
+}
+$('story').addEventListener('click',e=>{
+  const b=e.target.closest('.chap');
+  if(b&&!b.disabled){ const i=+b.dataset.i; if(G&&G.story===i&&!G.over) setTab('game'); else startStory(i); return; }
+  if(e.target.closest('#stPrologue')) dialogue(STORY.prologue,STORY.title,()=>{ progress.seen=true; saveProgress(); });
+  if(e.target.closest('#stEpilogue')) dialogue(STORY.epilogue,'Épilogue');
+});
 
 /* ---------- sound (synthesized wood clicks) ---------- */
 let ac=null;
@@ -591,6 +732,7 @@ function start(data){
     if(saved.clocks) G.clocks=saved.clocks;
     if(saved.over&&!G.over) G.over=saved.over;
     if(saved.orient) G.orient=saved.orient;
+    if(saved.geass!==undefined) G.geass=saved.geass;
     renderAll();
     setTab(G.history.length&&!G.over?'game':'play');
     maybeAI();

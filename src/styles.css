@@ -186,3 +186,42 @@ button{font:inherit;color:inherit}
   .setup{overflow:visible}
 }
 @media (prefers-reduced-motion:reduce){.pc.anim{transition:none}.card,.modal{animation:none}}
+
+/* story mode: chapter ladder, visual-novel dialogue, Geass hint */
+.story{padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto;flex:1}
+.story-head h3{margin:0 0 6px;font-family:"Cinzel",Georgia,serif;font-size:19px;letter-spacing:.03em;color:#f3dfa6}
+.story-head p{margin:0 0 12px;color:var(--fg-2);line-height:1.45}
+.story-head small{color:var(--fg-3);font-weight:600;font-size:12px}
+.story-prog{height:6px;border-radius:3px;background:var(--raise);overflow:hidden;margin-bottom:6px}
+.story-prog i{display:block;height:100%;background:linear-gradient(90deg,#b0262f,#d4af5a)}
+.chaps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.chap{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--raise);box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.chap:hover:not([disabled]){background:#45423f}
+.chap:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chap[disabled]{cursor:default;opacity:.45}
+.chap .pi{width:34px;height:34px;background-size:100%;flex:none}
+.chap .ci{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.chap .ci b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chap .ci small{color:var(--fg-3);font-size:12px;font-weight:600}
+.chap .badge{font-size:12px;font-weight:800;color:var(--fg-2);padding:4px 8px;border-radius:5px;background:rgba(0,0,0,.25);flex:none}
+.chap.beaten .badge{color:#d4af5a}
+.chap.cur{box-shadow:inset 0 0 0 2px #b0262f}
+.story-acts{display:grid;gap:8px}
+.vn{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px));box-sizing:border-box;background:linear-gradient(180deg,rgba(8,4,14,.25),rgba(8,4,14,.85));cursor:pointer;animation:fade .25s ease}
+.vn-box{width:min(720px,100%);background:rgba(18,11,27,.96);border:1px solid #d4af5a;border-radius:12px;padding:16px 18px 12px;box-sizing:border-box;box-shadow:0 0 40px rgba(110,30,170,.45);color:#f4eefc;outline:none}
+.vn-cap{font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#d4af5a;margin-bottom:8px}
+.vn-who{display:inline-block;font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(90deg,#5a1f86,#2b0f45);padding:3px 12px;border-radius:4px;margin-bottom:8px}
+.vn-text{margin:0;font-size:16px;line-height:1.55;min-height:3.1em;text-wrap:pretty}
+.vn.narr .vn-text{font-style:italic;color:#cfc3e0}
+.vn-foot{display:flex;align-items:center;gap:8px;margin-top:10px}
+.vn-count{flex:1;color:#9384a8;font-size:12px;font-weight:600}
+.vn-foot button{all:unset;cursor:pointer;font-weight:700;font-size:13px;padding:6px 12px;border-radius:6px;color:#cfc3e0}
+.vn-foot .vn-next{background:#b0262f;color:#fff}
+.vn-foot button:hover{filter:brightness(1.15)}
+.vn-foot button:focus-visible{outline:2px solid #d4af5a;outline-offset:2px}
+.acts-row .ib.geass-btn{background:#4a1530;color:#ffd7de}
+.acts-row .ib.geass-btn:hover:not([disabled]){background:#6b1b3e}
+.board.geass-flash::after{content:"";position:absolute;left:50%;top:50%;width:60%;aspect-ratio:1;border-radius:50%;border:4px solid rgba(255,40,70,.95);box-shadow:0 0 30px rgba(255,30,60,.8),inset 0 0 20px rgba(255,30,60,.6);transform:translate(-50%,-50%) scale(.2);opacity:0;animation:geassFlash .9s ease-out;z-index:20;pointer-events:none}
+@keyframes geassFlash{0%{transform:translate(-50%,-50%) scale(.2);opacity:1}100%{transform:translate(-50%,-50%) scale(1.6);opacity:0}}
+@media (max-width:520px){.vn-text{font-size:15px}.vn-box{padding:14px 14px 10px}}
+@media (prefers-reduced-motion:reduce){.vn{animation:none}.board.geass-flash::after{animation:none}}
