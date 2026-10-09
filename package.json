@@ -1,6 +1,6 @@
 {
   "name": "echiquier-vert",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Jeu d'échecs dans le navigateur : IA à 5 niveaux, mode 2 joueurs, pendules et thèmes.",
   "private": true,
   "scripts": {

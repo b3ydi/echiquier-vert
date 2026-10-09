@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Échiquier Vert</title>
+<title>Code Geass : The Chess Game</title>
 <meta name="description" content="Jeu d'échecs dans le navigateur : contre l'ordinateur (5 niveaux) ou à deux, avec pendules, thèmes et analyse des coups.">
 <meta name="theme-color" content="#302e2b">
 <meta property="og:title" content="Échiquier Vert">
@@ -17,6 +17,25 @@
 <style>body{margin:0}</style>
 </head>
 <body>
+<div class="menu splash" id="menu" tabindex="-1" role="dialog" aria-modal="true" aria-label="Menu principal">
+  <div class="menu-bg" aria-hidden="true"><div class="menu-ring r1"></div><div class="menu-ring r2"></div><div class="menu-drift" id="menuDrift"></div></div>
+  <div class="menu-inner">
+    <h1 class="menu-h1"><img class="menu-logo" src="assets/logo.webp" alt="Code Geass : The Chess Game" draggable="false"></h1>
+    <p class="menu-sub">Le Cercle du Roi Noir</p>
+    <p class="menu-press" id="menuPress">Appuyez pour commencer</p>
+    <nav class="menu-list" id="menuList">
+      <button class="mi primary" id="miStory"><span class="mi-t">Mode Histoire</span><small id="miStorySub"></small></button>
+      <button class="mi" id="miResume" hidden><span class="mi-t">Reprendre la partie</span><small id="miResumeSub"></small></button>
+      <button class="mi" id="miFree"><span class="mi-t">Mode libre</span><small>Contre l'ordinateur ou à deux</small></button>
+      <button class="mi" id="miOptions" aria-expanded="false"><span class="mi-t">Options</span><small>Musique et effets sonores</small></button>
+      <div class="menu-opts" id="menuOpts" hidden>
+        <button class="tog" id="optMusic" role="switch"><span>Musique</span><i></i></button>
+        <button class="tog" id="optSfx" role="switch"><span>Effets sonores</span><i></i></button>
+      </div>
+    </nav>
+  </div>
+  <div class="menu-foot">Fan game inspiré de Code Geass · projet non officiel</div>
+</div>
 <div class="app" id="app">
   <div class="col">
     <div class="player" id="pTop"></div>
@@ -26,11 +45,21 @@
       <svg class="arrows" id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
     </div>
     <div class="player" id="pBot"></div>
+    <div class="bubble top" id="bubTop" hidden><b></b><span></span></div>
+    <div class="bubble bot" id="bubBot" hidden><b></b><span></span></div>
+    <div class="story-hud" id="storyHud">
+      <div class="hud-ch" id="hudCh"></div>
+      <button class="hud-btn geass" id="hudGeass" title="Geass : révèle le meilleur coup, une fois par partie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Geass</span></button>
+      <button class="hud-btn" id="hudResign" title="Abandonner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Abandon</span></button>
+      <button class="hud-btn" id="hudMenu" title="Menu principal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+    </div>
   </div>
 
   <aside class="panel">
     <div class="tabs" role="tablist">
-      <button role="tab" id="tabPlayBtn" aria-selected="true" data-tab="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Nouvelle partie</button>
+      <button class="tab-menu" id="btnMenu" title="Menu principal" aria-label="Menu principal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <button role="tab" id="tabPlayBtn" aria-selected="true" data-tab="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Libre</button>
+      <button role="tab" id="tabStoryBtn" aria-selected="false" data-tab="story"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M12 9.6l.9 1.5H11.1z" fill="currentColor"/></svg>Histoire</button>
       <button role="tab" id="tabGameBtn" aria-selected="false" data-tab="game"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Partie</button>
     </div>
 
@@ -67,6 +96,10 @@
       </div>
     </section>
 
+    <section class="tab" id="tabStory" role="tabpanel" hidden>
+      <div class="story" id="story"></div>
+    </section>
+
     <section class="tab" id="tabGame" role="tabpanel" hidden>
       <div class="status" id="status"></div>
       <div class="moves" id="moves"></div>
@@ -86,17 +119,15 @@
         <button class="ib" id="btnPgn" title="Copier la partie au format PGN"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Copier PGN</button>
         <button class="ib" id="btnNew" title="Nouvelle partie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nouvelle</button>
       </div>
+      <div class="acts-row" id="geassRow" hidden>
+        <button class="ib geass-btn" id="btnGeass" title="Geass : révèle le meilleur coup, une fois par partie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Geass</span></button>
+      </div>
       <div class="credit">Pièces : Colin M.L. Burnett (CC BY-SA 3.0)</div>
     </section>
-  <div class="music" id="music">
-      <div class="music-head"><svg width="18" height="18" viewBox="0 0 24 24" fill="#1ed760" aria-hidden="true"><circle cx="12" cy="12" r="11"/><path d="M6.5 9.3c3.8-1.1 8-.8 11.2 1M7.2 12.6c3.1-.9 6.6-.6 9.3.9M7.8 15.7c2.5-.7 5.1-.5 7.3.7" stroke="#121212" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg><span class="lbl">Musique</span><button type="button" id="musicEdit">Changer</button><button type="button" id="musicToggle">Masquer</button></div>
-      <iframe id="musicFrame" title="Lecteur Spotify" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
-      <form id="musicForm" hidden><input id="musicUrl" type="text" inputmode="url" autocomplete="off" placeholder="Collez un lien Spotify (playlist, album, titre)" aria-label="Lien Spotify"><button type="submit">OK</button></form>
-      <div class="err" id="musicErr" hidden>Ce lien n'est pas reconnu. Copiez-le depuis Spotify avec « Partager › Copier le lien ».</div>
-    </div>
   </aside>
 </div>
 <script src="engine.js"></script>
+<script src="story.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
