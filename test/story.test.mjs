@@ -49,6 +49,7 @@ test('chapitres jouables et difficulté croissante', () => {
     assert.ok(Number.isInteger(ch.level) && ch.level >= 0 && ch.level < LEVEL_COUNT);
     assert.ok(Number.isInteger(ch.tc) && ch.tc >= 0 && ch.tc < TC_COUNT);
     assert.ok(ch.level >= prev, 'le niveau ne doit pas baisser'); prev = ch.level;
+    if (ch.ai) for (const [k, v] of Object.entries(ch.ai)) assert.ok(['depth', 'noise', 'time'].includes(k) && v > 0, `${ch.id}.ai.${k}`);
     checkLines(ch.intro, `${ch.id}.intro`); checkLines(ch.win, `${ch.id}.win`); checkLines(ch.lose, `${ch.id}.lose`);
     assert.ok(ch.intro[0].bg, `${ch.id} : la cinématique d'intro a un décor`);
     const img = STORY.chars[ch.char].img;
@@ -58,4 +59,12 @@ test('chapitres jouables et difficulté croissante', () => {
     }
   }
   assert.equal(STORY.chapters.at(-1).level, LEVEL_COUNT - 1, 'le boss final joue au niveau Expert');
+});
+
+test('ordre de la campagne', () => {
+  const chars = STORY.chapters.map((c) => c.char);
+  assert.equal(chars[0], 'baron');
+  assert.equal(chars[1], 'isabella', 'Lady Isabella est le deuxième adversaire');
+  assert.deepEqual(chars.slice(-2), ['vance', 'marquis'], 'le Général précède le Marquis');
+  assert.ok(STORY.chapters[0].ai.noise > 240, 'le premier adversaire joue plus faible que le niveau Débutant');
 });

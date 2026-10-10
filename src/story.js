@@ -11,6 +11,8 @@ const STORY={
     lelouch:{name:'Lelouch',def:'smirk',img:{smirk:'assets/lelouch-smirk.webp',surprised:'assets/lelouch-surprised.webp',thinking:'assets/lelouch-thinking.webp',geass:'assets/lelouch-geass.webp',fury:'assets/lelouch-fury.webp'}},
     rivalz:{name:'Rivalz',def:'happy',img:{happy:'assets/rivalz-happy.webp',shocked:'assets/rivalz-shocked.webp',sheepish:'assets/rivalz-sheepish.webp',angry:'assets/rivalz-angry.webp'}},
     baron:{name:'Baron Harlow',def:'smug',img:{smug:'assets/baron-smug.webp',angry:'assets/baron-angry.webp',shocked:'assets/baron-shocked.webp',scheming:'assets/baron-scheming.webp'}},
+    isabella:{name:'Lady Isabella',def:'smug',img:{smug:'assets/isabella-smug.webp',angry:'assets/isabella-angry.webp',shocked:'assets/isabella-shocked.webp',laugh:'assets/isabella-laugh.webp'}},
+    vance:{name:'Général Vance',def:'smug',img:{smug:'assets/vance-smug.webp',angry:'assets/vance-angry.webp',scheming:'assets/vance-scheming.webp',fury:'assets/vance-fury.webp'}},
     mira:{name:'Mira',piece:'N'},
     anselme:{name:'Frère Anselme',piece:'B'},
     gregor:{name:'Gregor',piece:'R'},
@@ -31,12 +33,12 @@ const STORY={
     {who:'lelouch',e:'thinking',text:"La police obéit aux nobles. Non, Rivalz. On va au rendez-vous."},
     {bg:'stairs',caption:'Minuit · sous un casino abandonné',clear:true,who:'',text:"Sous un casino fermé depuis des années, un escalier descend vers une salle dont personne n'avoue l'existence. Des gardes masqués s'écartent sans un mot."},
     {bg:'hall',caption:'Le Cercle du Roi Noir',who:'marquis',text:"Bienvenue, Lelouch. Votre dette appartient au Cercle. Et vous avec elle."},
-    {who:'marquis',text:"Ici, on ne paie pas en argent. Battez mes cinq champions, puis moi, et votre nom disparaîtra du registre. Perdez, et vous jouerez pour moi. Pour toujours."},
+    {who:'marquis',text:"Ici, on ne paie pas en argent. Battez tous ceux que je placerai devant vous, puis moi, et votre nom disparaîtra du registre. Perdez, et vous jouerez pour moi. Pour toujours."},
     {who:'rivalz',e:'angry',text:"C'est n'importe quoi ! Il est encore au lycée, vous ne pouvez pas—"},
     {who:'marquis',text:"Le garçon a signé. Ou du moins, sa main l'a fait."},
-    {who:'lelouch',e:'geass',fx:'geass',text:"Six pièces sur un échiquier… et vous vous prenez pour le roi."},
+    {who:'lelouch',e:'geass',fx:'geass',text:"Des pièces sur un échiquier… et vous vous prenez pour le roi."},
     {who:'lelouch',e:'fury',fx:'shake',text:"Très bien, Marquis. Je vais vous montrer ce qui arrive à un roi qui ne bouge jamais."},
-    {bg:'black',clear:true,who:'',text:"Pour vaincre le Cercle, Lelouch possède un atout que personne ne soupçonne : une fois par partie, son regard peut lire le meilleur coup. Le bouton Geass apparaît pendant les matchs."}
+    {bg:'black',clear:true,who:'',text:"Pour vaincre le Cercle, Lelouch possède un atout que personne ne soupçonne : une fois par partie, son regard peut lire le meilleur coup. C'est son premier Skill, le bouton apparaît pendant les matchs."}
   ],
   // Generic lines for Lelouch during a match.
   lelouch:{
@@ -47,7 +49,7 @@ const STORY={
   },
   chapters:[
     {
-      id:'pion', char:'baron', name:'Baron Edmond Harlow', title:'le Pion', piece:'P', level:0, color:'w', tc:0,
+      id:'pion', char:'baron', name:'Baron Edmond Harlow', title:'le Pion', piece:'P', level:0, ai:{depth:1,noise:420}, color:'w', tc:0,
       place:'Le salon des recruteurs',
       intro:[
         {bg:'hall',who:'baron',e:'smug',text:"Surpris, Lelouch ? Le Cercle récompense ceux qui lui amènent du talent. Et vous êtes ma plus belle prise."},
@@ -58,7 +60,8 @@ const STORY={
       win:[
         {who:'baron',e:'shocked',text:"Impossible… J'avais étudié chacune de vos parties !"},
         {who:'lelouch',e:'smirk',text:"Vous avez étudié celles que je voulais que vous voyiez."},
-        {who:'baron',e:'angry',text:"Riez tant que vous pouvez. Le Marquis ne vous laissera jamais sortir d'ici !"}
+        {who:'baron',e:'angry',text:"Riez tant que vous pouvez. Le Marquis ne vous laissera jamais sortir d'ici !"},
+        {bg:'black',clear:true,who:'',text:"Dans une loge, au-dessus de la salle, quelqu'un a suivi toute la partie derrière un éventail de dentelle. Et n'a pas du tout apprécié la fin."}
       ],
       lose:[{who:'baron',e:'smug',text:"Vous voyez ? Même les prodiges finissent sur le registre. Revenez demain soir."}],
       barks:{
@@ -70,10 +73,38 @@ const STORY={
       }
     },
     {
+      id:'mecene', char:'isabella', name:'Lady Isabella von Britannia', title:'la Mécène', piece:'Q', level:1, color:'b', tc:0,
+      place:"La loge impériale de l'Opéra",
+      intro:[
+        {bg:'black',clear:true,who:'',text:"Le lendemain, un carton doré attendait Lelouch sous sa porte. « Lady Isabella von Britannia vous fait l'honneur de sa loge. » Ce n'était pas une invitation. C'était une convocation."},
+        {bg:'opera',caption:'Opéra impérial · loge privée',who:'isabella',e:'smug',text:"Alors c'est vous, le petit prodige qui a fait pleurer ce pauvre Harlow. Approchez. Je ne mords que les gens importants."},
+        {who:'lelouch',e:'thinking',text:"Lady Isabella. On dit que vous financez la moitié des tables du Cercle."},
+        {who:'isabella',e:'laugh',text:"La moitié ? Vous me vexez. Le Marquis tient le registre, mais c'est mon or qui fait tourner ses roues. Et un général de mes amis qui fait taire les curieux."},
+        {who:'isabella',e:'smug',text:"Les échecs sont la société en miniature, mon cher. Les pions meurent pour que la noblesse triomphe. Vous êtes un pion. Brillant, je vous l'accorde. Mais un pion."},
+        {who:'lelouch',e:'smirk',text:"Un pion qui atteint la dernière rangée devient ce qu'il veut. Même une reine."},
+        {who:'isabella',e:'angry',text:"Quelle insolence. Je ne joue presque jamais moi-même… mais pour vous, je ferai une exception. Mes invités adorent regarder un roturier tomber."}
+      ],
+      win:[
+        {who:'isabella',e:'shocked',text:"Non… Pas devant toute la loge. Pas battue par un… un lycéen !"},
+        {who:'lelouch',e:'smirk',text:"Vous l'avez dit vous-même : les pions meurent pour que la noblesse triomphe. Vous avez simplement oublié de vérifier qui était le pion."},
+        {who:'isabella',e:'angry',text:"Riez, profitez-en. Je connais un homme pour qui un échiquier est un champ de bataille. Il n'y fait jamais de prisonniers."},
+        {who:'isabella',e:'smug',text:"Le général Vance me doit une faveur. Quand il en aura fini avec vous, vous supplierez qu'on vous rende au registre."},
+        {bg:'black',clear:true,who:'',text:"Lelouch quitte l'Opéra sous les regards glacés de l'aristocratie. Le nom de Vance, lui, reste gravé dans sa mémoire."}
+      ],
+      lose:[{who:'isabella',e:'laugh',text:"Exactement comme prévu. Rangez-le avec les autres pions, voulez-vous ? Et resservez-moi du champagne."}],
+      barks:{
+        capture:[{e:'smug',text:"Un pion de moins. Personne ne le pleurera."},{e:'laugh',text:"Oh, ne faites pas cette tête. C'est le destin des petites pièces."},{e:'smug',text:"Merci, mon cher. Je la ferai encadrer."}],
+        check:[{e:'smug',text:"Échec. Vous entendez ? Mes invités applaudissent."},{e:'laugh',text:"Votre roi tremble comme un roturier devant l'Empereur."}],
+        advantage:[{e:'laugh',text:"Mon champagne aura bien meilleur goût ce soir."},{e:'smug',text:"Inclinez-vous, Lelouch. C'est ainsi que le monde doit tourner."}],
+        hurt:[{e:'angry',text:"Comment osez-vous toucher à mes pièces ?"},{e:'shocked',text:"Ce… c'était une pièce de valeur !"}],
+        checked:[{e:'shocked',text:"Un roturier qui menace mon roi ? Inconcevable !"},{e:'angry',text:"Vous oubliez à qui vous parlez."}]
+      }
+    },
+    {
       id:'cavalier', char:'mira', name:'Mira Sauveterre', title:'la Cavalière', piece:'N', level:1, color:'b', tc:0,
       place:'La galerie aux miroirs',
       intro:[
-        {bg:'mirrors',who:'mira',text:"Le baron vous a sous-estimé. Pas moi. J'ai vu votre partie : propre, froide, efficace."},
+        {bg:'mirrors',who:'mira',text:"Lady Isabella vous a sous-estimé. Pas moi. J'ai vu votre partie : propre, froide, efficace."},
         {who:'mira',text:"Mais je ne joue pas en ligne droite. Mes cavaliers sautent là où vous ne regardez pas."},
         {who:'lelouch',e:'thinking',text:"Une fourchette ne fonctionne que si l'adversaire laisse ses pièces au mauvais endroit. Je n'en laisse aucune au hasard."}
       ],
@@ -144,7 +175,7 @@ const STORY={
       win:[
         {who:'severine',text:"Vous avez joué plus vite que moi… et mieux. Personne n'avait jamais fait tomber ma dame."},
         {who:'lelouch',e:'thinking',text:"La pièce la plus puissante est aussi celle qu'on protège le plus. C'est ce qui la rend prévisible."},
-        {who:'severine',text:"Le Marquis vous attend. Méfiez-vous : lui ne joue jamais pour l'argent."}
+        {who:'severine',text:"Le Marquis vous attend. Mais quelqu'un est arrivé avant vous ce soir : un homme en uniforme. Lady Isabella n'oublie jamais une humiliation."}
       ],
       lose:[{who:'severine',text:"Le temps, mon cher. Il gagne toujours. Revenez quand vous saurez le dompter."}],
       barks:{
@@ -156,10 +187,39 @@ const STORY={
       }
     },
     {
+      id:'general', char:'vance', name:'Général Hector Vance', title:"le Général", piece:'R', level:4, ai:{time:2400}, color:'b', tc:0,
+      place:'La salle des cartes',
+      intro:[
+        {bg:'black',fx:'shake',clear:true,who:'',text:"Des bottes résonnent dans l'escalier du casino. Cette nuit, ce ne sont pas les gardes masqués du Cercle qui ouvrent les portes. Ce sont des soldats."},
+        {bg:'warroom',caption:"Le Cercle · occupé par l'armée impériale",who:'vance',e:'smug',text:"Lelouch. Lady Isabella m'a beaucoup parlé de vous. Un lycéen qui humilie la noblesse… J'ai fait fusiller des hommes pour moins que ça."},
+        {who:'lelouch',e:'thinking',text:"Général Hector Vance. La division qui a rasé trois villes en une semaine. Vous êtes bien loin de votre front."},
+        {who:'vance',e:'scheming',text:"Le front est partout où l'on défie l'Empire. Ce soir, il passe par cet échiquier."},
+        {who:'vance',e:'angry',text:"La guerre et les échecs, c'est la même chose : de la logistique, de la force, et des sacrifices. Je ne compte jamais mes morts. Seulement mes victoires."},
+        {who:'lelouch',e:'fury',text:"C'est exactement pour ça que vous perdrez. Un général qui méprise ses soldats ne voit pas le moment où son armée cesse de le protéger."},
+        {who:'vance',e:'fury',fx:'shake',text:"Assez ! Asseyez-vous. Je vais vous broyer pièce par pièce, et vous allez sentir chacune d'elles tomber."},
+        {who:'lelouch',e:'geass',fx:'geass',text:"Venez, Général. Je vais vous apprendre la seule guerre que vous n'avez jamais menée : celle qu'on gagne avant le premier coup de feu."}
+      ],
+      win:[
+        {who:'vance',e:'fury',text:"Impossible… Mes lignes étaient parfaites ! Chaque pièce à sa place !"},
+        {who:'lelouch',e:'smirk',text:"Justement. Vous les avez sacrifiées une à une, et à la fin, plus personne ne protégeait votre roi."},
+        {who:'vance',e:'angry',text:"Ce n'est pas terminé. L'Empire n'oublie jamais ceux qui le défient, Lelouch."},
+        {who:'lelouch',e:'thinking',text:"(Non. Et moi non plus.)"},
+        {bg:'black',clear:true,who:'',text:"Les soldats se retirent sans un mot. Au fond de la salle, une porte que Lelouch n'avait jamais remarquée s'ouvre sur un escalier. Le Marquis l'attend."}
+      ],
+      lose:[{who:'vance',e:'smug',text:"Voilà ce qu'est la guerre, garçon. Rentrez chez vous, et remerciez l'Empire d'être encore en vie."}],
+      barks:{
+        capture:[{e:'smug',text:"Perte acceptable. Pour moi."},{e:'scheming',text:"Une pièce de moins. Votre ligne cède, soldat."},{e:'angry',text:"En avant ! On ne fait pas de prisonniers."}],
+        check:[{e:'angry',text:"Échec ! Rendez-vous, et je serai clément. Peut-être."},{e:'fury',text:"Votre roi est encerclé. Capitulez !"}],
+        advantage:[{e:'scheming',text:"Je sens votre moral s'effondrer. C'est toujours ainsi que ça commence."},{e:'smug',text:"Mes troupes avancent, les vôtres reculent. La suite est déjà écrite."}],
+        hurt:[{e:'smug',text:"Un soldat tombe, dix autres prennent sa place."},{e:'angry',text:"Vous croyez m'affaiblir ? Je n'ai jamais pleuré un soldat."}],
+        checked:[{e:'fury',text:"Insolent ! Vous osez attaquer mon commandement ?!"},{e:'angry',text:"Une escarmouche. Rien de plus."}]
+      }
+    },
+    {
       id:'roi', char:'marquis', name:'Marquis de Valcourt', title:'le Roi Noir', piece:'K', level:4, color:'w', tc:6,
       place:'La salle du trône',
       intro:[
-        {bg:'throne',who:'marquis',text:"Cinq champions. Vous avez fait en une semaine ce que personne n'a fait en vingt ans."},
+        {bg:'throne',who:'marquis',text:"Même Vance a reculé. Vous avez fait en une semaine ce que personne n'a fait en vingt ans."},
         {who:'marquis',text:"Mais mes champions étaient des pièces. Moi, je suis celui qui les déplace. Ici, tout le monde m'obéit."},
         {who:'lelouch',e:'thinking',text:"C'est bien votre erreur. Un roi qui se cache derrière ses pièces ne sait plus se battre lui-même."},
         {who:'lelouch',e:'geass',fx:'geass',text:"Moi, je bouge le premier. Et ce soir, c'est votre royaume qui tombe."}
@@ -180,7 +240,7 @@ const STORY={
     }
   ],
   epilogue:[
-    {bg:'dawn',caption:"L'aube sur la Concession",clear:true,who:'',text:"Au-dessus du casino abandonné, le ciel pâlit. La moto de Rivalz attend devant l'entrée, moteur encore chaud."},
+    {bg:'dawn',music:'menu',caption:"L'aube sur la Concession",clear:true,who:'',text:"Au-dessus du casino abandonné, le ciel pâlit. La moto de Rivalz attend devant l'entrée, moteur encore chaud."},
     {who:'rivalz',e:'shocked',text:"Alors ? Dis-moi que c'est fini. Dis-moi qu'on peut aller en cours comme des gens normaux."},
     {who:'lelouch',e:'smirk',text:"C'est fini. Le Cercle n'existe plus. Et toutes les dettes de leur registre ont brûlé avec lui."},
     {who:'rivalz',e:'happy',text:"Tu es complètement fou, tu le sais ? Monte, on a contrôle de maths dans une heure !"},

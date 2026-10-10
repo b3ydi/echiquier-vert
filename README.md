@@ -17,14 +17,15 @@
 
 ## L'histoire : Le Cercle du Roi Noir
 
-Lelouch gagne de l'argent en battant des nobles aux échecs. Un soir, le baron Harlow ne supporte pas sa défaite. Le lendemain, une dette de cinq millions portant la fausse signature de Lelouch arrive à l'Académie. Pour s'en libérer, il doit descendre sous un casino abandonné et battre les six maîtres du Cercle du Roi Noir, du Pion jusqu'au Marquis.
+Lelouch gagne de l'argent en battant des nobles aux échecs. Un soir, le baron Harlow ne supporte pas sa défaite. Le lendemain, une dette de cinq millions portant la fausse signature de Lelouch arrive à l'Académie. Pour s'en libérer, il doit descendre sous un casino abandonné et affronter le Cercle du Roi Noir : le baron Harlow, Lady Isabella von Britannia qui finance les tables, les champions du Marquis, puis le général Hector Vance avant le Marquis lui-même.
 
 <img src="docs/cinematique.png" alt="Cinématique d'introduction" width="820">
 
-- **Une cinématique** ouvre chaque nouvelle partie : décors animés, portraits qui changent d'expression, effets du Geass, carton de chapitre.
-- **Six chapitres** de difficulté croissante, du niveau Débutant au niveau Expert, avec la pendule pour les deux derniers.
+- **Des cinématiques** présentent chaque adversaire et concluent chaque victoire : décors animés, portraits qui changent d'expression, effets du Geass, carton de chapitre.
+- **Huit chapitres** de difficulté croissante : le premier est une mise en jambe, le Général et le Marquis jouent au niveau Expert.
 - **Des adversaires qui parlent** : ils réagissent quand ils prennent une pièce, mettent en échec ou prennent l'avantage, et Lelouch leur répond.
-- **Le pouvoir Geass** : une fois par partie, Lelouch lit le meilleur coup.
+- **Un Skill** : une fois par partie, l'Œil du stratège (le Geass de Lelouch) révèle le meilleur coup.
+- **Une musique par adversaire**, douce au début de la partie, qui devient épique quand le match s'échauffe.
 - **La progression est sauvegardée**, et une partie interrompue reprend là où elle s'était arrêtée.
 
 <table>
@@ -50,7 +51,7 @@ Le jeu d'échecs classique, contre l'ordinateur ou à deux sur le même écran.
 - **Confort de jeu** : glisser-déposer ou clic, aperçu des coups légaux, flèches et marques au clic droit.
 - **Analyse** : historique des coups navigable au clavier, export PGN en un clic.
 - **5 thèmes d'échiquier**, dont le thème Geass noir, violet et or.
-- **Musique et sons** synthétisés en direct, réglables dans les options.
+- **Musique et sons** synthétisés en direct, avec un bruit de pièce en bois et des pièces qui se soulèvent et se posent, réglables dans les options.
 
 ## Démarrage rapide
 
@@ -92,7 +93,7 @@ echiquier-vert/
 Tout le contenu du mode histoire se trouve dans [`src/story.js`](src/story.js), sans toucher au reste du code.
 
 - **Une réplique** s'écrit `{who:'lelouch', e:'thinking', text:"…"}`. `who` est un personnage, `e` son expression.
-- **Un décor** se choisit avec `bg` (`city`, `salon`, `academy`, `stairs`, `hall`, `chapel`, `vault`, `throne`, `dawn`…), une légende de lieu avec `caption`, un effet avec `fx` (`flash`, `geass`, `shake`).
+- **Un décor** se choisit avec `bg` (`city`, `salon`, `academy`, `stairs`, `hall`, `opera`, `chapel`, `vault`, `warroom`, `throne`, `dawn`…), une légende de lieu avec `caption`, un effet avec `fx` (`flash`, `geass`, `shake`).
 - **Un nouveau portrait** : déposez une image WebP à fond transparent dans `src/assets/` et ajoutez-la dans `chars`. Un personnage sans image apparaît en silhouette de pièce d'échecs.
 
 `npm test` vérifie que chaque réplique pointe vers un personnage, une expression et une image qui existent.

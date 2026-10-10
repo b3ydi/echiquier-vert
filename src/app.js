@@ -65,6 +65,7 @@ const REASONS={checkmate:'par échec et mat',stalemate:'par pat',fifty:'par la r
 const VALS={p:1,n:3,b:3,r:5,q:9};
 
 let settings={mode:'ai',level:2,color:'w',tc:0,theme:'green',sound:true,music:true};
+let dropPos=null, lastAnim=null;
 let G=null, hintMove=null, hintReq=0, sel=null, legalCache=null, hoverSq=-1, drag=null, promoOpen=false, thinking=false, aiReq=0, aiMinAt=0, lastTick=Date.now();
 const marks=new Set(); let arrows=[]; let rightFrom=-1;
 
@@ -129,9 +130,12 @@ function commit(m,anim,silent){
   if(silent){ if(st.over) G.over=st; return; }
   marks.clear(); arrows=[];
   if(!$('tabPlay').hidden) setTab('game');
-  sound(st.over?'end':G.game.inCheck()?'check':(m.flag==='k'||m.flag==='q')?'castle':m.promo?'promote':m.captured?'capture':'move');
+  // The click is heard when the piece lands: after the slide, or at once for a piece dropped by hand.
+  lastAnim=anim;
+  sound(st.over?'end':G.game.inCheck()?'check':(m.flag==='k'||m.flag==='q')?'castle':m.promo?'promote':m.captured?'capture':'move',anim===true?slideDur(m.from,m.to):0);
   renderAll(anim?m:null);
   storyBarks(m,mover,st);
+  if(G.story!=null&&!st.over) Music.intensity(tension());
   if(st.over) endGame(st); else maybeAI();
   save();
 }
@@ -167,7 +171,7 @@ try{
 }catch(e){ worker=null; }
 function maybeAI(){
   if(!G||G.mode!=='ai'||G.over||G.game.turn!==G.aiColor) return;
-  const id=++aiReq, fen=G.game.fen(), opts=LEVELS[G.level].opts;
+  const sc=storyChapter(), id=++aiReq, fen=G.game.fen(), opts={...LEVELS[G.level].opts,...(sc&&sc.ai)};
   thinking=true; aiMinAt=Date.now()+(G.history.length<2?500:350); renderStatus();
   if(worker) worker.postMessage({id,fen,opts});
   else setTimeout(()=>{ if(id===aiReq) onAI(id,E.search(fen,opts)); },60);
@@ -180,12 +184,12 @@ function onAI(id,r){
     if(!r){ renderStatus(); return; }
     const m=legal().find(x=>x.from===r.from&&x.to===r.to&&(x.promo||'')===(r.promo||''));
     if(!m){ renderStatus(); return; }
-    G.view=G.history.length;
+    G.view=G.history.length; G.aiScore=r.score||0;
     commit(m,true);
   },Math.max(0,aiMinAt-Date.now()));
 }
 
-/* Geass: once per story match, the engine reveals the best move for Lelouch. */
+/* Skill « Œil du stratège » (Lelouch's Geass): once per story match, the engine reveals the best move. */
 const HINT_OPTS={time:1200};
 function useGeass(){
   if(!G||G.story==null||!G.geass||!canInteract()||thinking) return;
@@ -250,17 +254,43 @@ function renderBoard(anim){
   if(anim) animate(anim);
   drawArrows();
 }
+// Longer trips take a little longer, like a hand carrying the piece across the board.
+function slideDur(from,to){ return Math.round(150+42*Math.sqrt(Math.hypot((from&7)-(to&7),(from>>3)-(to>>3)))); }
 function slide(el,from,to){
   if(!el) return;
-  const [fx,fy]=xy(from), [tx,ty]=xy(to);
+  const [fx,fy]=xy(from), [tx,ty]=xy(to), dur=slideDur(from,to);
   el.style.transform=`translate(${fx*100}%,${fy*100}%)`;
+  el.style.setProperty('--dur',dur+'ms');
   el.getBoundingClientRect();
   el.classList.add('anim');
   el.style.transform=`translate(${tx*100}%,${ty*100}%)`;
-  el.addEventListener('transitionend',()=>el.classList.remove('anim'),{once:true});
+  setTimeout(()=>el.classList.remove('anim'),dur*1.4+40);
+  return dur;
+}
+// A piece released by hand snaps from the pointer into its square and settles with a small bounce.
+function dropIn(el,to){
+  if(!el||!dropPos) return;
+  const [tx,ty]=xy(to);
+  el.style.transform=`translate(${dropPos.x}px,${dropPos.y}px)`; el.style.scale='1.14';
+  el.getBoundingClientRect();
+  el.classList.add('snap');
+  el.style.transform=`translate(${tx*100}%,${ty*100}%)`; el.style.scale='';
+  setTimeout(()=>el.classList.remove('snap'),280);
+}
+// The captured piece stays a moment under the attacker, then fades out as it lands.
+function ghost(m,delay){
+  const sq=m.flag==='e'?(m.from&~7)|(m.to&7):m.to, [x,y]=xy(sq);
+  const d=document.createElement('div'); d.className='pc ghost p-'+pcode(m.captured);
+  d.style.transform=`translate(${x*100}%,${y*100}%)`; d.style.animationDelay=delay+'ms';
+  piecesEl.insertBefore(d,piecesEl.firstChild);
+  setTimeout(()=>d.remove(),delay+260);
 }
 function animate(m){
-  slide(pcEls[m.to],m.from,m.to);
+  const drop=lastAnim==='drop'; lastAnim=null;
+  let dur=0;
+  if(drop) dropIn(pcEls[m.to],m.to); else dur=slide(pcEls[m.to],m.from,m.to)||0;
+  dropPos=null;
+  if(m.captured) ghost(m,drop?0:dur*.75);
   const o=m.from&~7;
   if(m.flag==='k') slide(pcEls[o+5],o+7,o+5);
   if(m.flag==='q') slide(pcEls[o+3],o,o+3);
@@ -351,8 +381,8 @@ function renderNav(){
   $('btnUndo').disabled=!G.history.length||G.story!=null;
   $('geassRow').hidden=G.story==null;
   $('btnGeass').disabled=!G.geass||!!G.over;
-  $('btnGeass').querySelector('span').textContent=G.geass?'Geass (1)':'Geass utilisé';
-  $('hudGeass').disabled=$('btnGeass').disabled; $('hudGeass').querySelector('span').textContent=G.geass?'Geass':'Utilisé';
+  $('btnGeass').querySelector('span').textContent=G.geass?'Skill (1)':'Skill utilisé';
+  $('hudGeass').disabled=$('btnGeass').disabled; $('hudGeass').querySelector('span').textContent=G.geass?'Skill':'Utilisé';
   $('hudResign').disabled=$('btnResign').disabled;
   const sc=storyChapter(); $('hudCh').innerHTML=sc?`<b>Chapitre ${G.story+1}</b><span>${esc(sc.title)}</span>`:'';
   $('btnResign').disabled=!!G.over||!G.history.length;
@@ -463,8 +493,10 @@ function endDrag(e){
   const d=drag; const to=sqAt(e);
   if(hoverSq>=0) sqEls[hoverSq].classList.remove('hover'); hoverSq=-1;
   if(d.moved){
-    if(to>=0&&to!==d.from&&tryMove(d.from,to,false)){ drag=null; return; }
-    drag=null; renderBoard(); return;
+    const sq=d.r.width/8;
+    dropPos={x:e.clientX-d.r.left-sq/2,y:e.clientY-d.r.top-sq/2};
+    if(to>=0&&to!==d.from&&tryMove(d.from,to,'drop')){ drag=null; return; }
+    dropPos=null; drag=null; renderBoard(); return;
   }
   drag=null;
   if(d.was&&to===d.from) sel=null;
@@ -540,6 +572,8 @@ function setLayout(){
   const was=document.body.classList.contains('story-mode');
   document.body.classList.toggle('story-mode',on);
   if(!on){ hideBubbles(); if(menuEl.hidden&&!$('vn')) Music.stop(); }
+  // back to a story match already under way: its opponent's theme picks up where the game stands
+  else if(G.history.length&&!G.over&&menuEl.hidden&&!$('vn')&&!Music.playing){ Music.play(storyChapter().char); Music.level(.5); Music.intensity(tension(),true); }
   if(on!==was){ layout(); if(G) renderAll(); }
 }
 function setTab(t){
@@ -654,6 +688,7 @@ function scene(shots,opts,done){
     card.hidden=!l.card;
     if(l.card){ card.querySelector('h2').textContent=l.card.title; card.querySelector('p').textContent=l.card.sub||''; card.classList.remove('on'); void card.offsetWidth; card.classList.add('on'); }
     if(l.fx) fx(l.fx);
+    if(l.music){ Music.play(l.music); Music.intensity(.15,true); }
     const name=l.who?(CH[l.who]?CH[l.who].name:l.who):'';
     who.textContent=name; who.hidden=!name; d.classList.toggle('narr',!name);
     box.hidden=!l.text;
@@ -684,7 +719,7 @@ function scene(shots,opts,done){
   }
   d.addEventListener('click',e=>{ if(e.target.closest('.vn-skip')) finish(); else next(); });
   document.addEventListener('keydown',key,true);
-  vnClose=finish; Music.start(); Music.level(1);
+  vnClose=finish; if(!Music.playing) Music.play(shots[0].music||'menu'); Music.level(1); Music.intensity(.15);
   next(); box.focus();
 }
 // Night or dawn skyline, drawn once per backdrop.
@@ -700,7 +735,7 @@ function skyline(dawn){
 }
 
 function revealBoard(){
-  const app=$('app'); app.classList.remove('reveal'); void app.offsetWidth; app.classList.add('reveal'); Music.level(.35);
+  const app=$('app'); app.classList.remove('reveal'); void app.offsetWidth; app.classList.add('reveal'); Music.level(.5); Music.intensity(tension());
   sound('select'); setTimeout(()=>app.classList.remove('reveal'),1600);
 }
 function startStory(i){
@@ -708,15 +743,17 @@ function startStory(i){
   ensureAudio();
   newGame({mode:'ai',level:ch.level,color:ch.color,tc:ch.tc,story:i});
   setTab('game'); save();
-  const card={bg:ch.intro[0].bg,clear:true,caption:ch.place,card:{title:`Chapitre ${i+1}`,sub:`${ch.name}, ${ch.title}`},who:'',text:'',auto:2600};
-  const shots=[...(i===0?STORY.prologue:[]),...ch.intro,card];
+  const card={bg:ch.intro.find(l=>l.bg!=='black').bg,clear:true,caption:ch.place,card:{title:`Chapitre ${i+1}`,sub:`${ch.name}, ${ch.title}`},who:'',text:'',auto:2600};
+  const shots=[...(i===0?STORY.prologue:[]),{...ch.intro[0],music:ch.char},...ch.intro.slice(1),card];
   progress.seen=true; saveProgress();
   scene(shots,{},()=>{ if(G&&G.story===i){ revealBoard(); setTimeout(()=>{ if(G&&G.story===i) maybeAI(); },1000); } });
 }
 function showStoryEnd(){
   const st=G.over, i=G.story, ch=STORY.chapters[i], won=humanWon(st), last=i===STORY.chapters.length-1;
   const lines=won?ch.win:st.result==='1/2-1/2'?[{who:ch.char,text:"Une nulle ? Le Cercle ne libère que les vainqueurs. Recommencez."}]:ch.lose;
-  scene(lines,{overlay:true},()=>{
+  // A win plays as a full cinematic in the chapter's own setting; a loss or a draw stays over the board.
+  const outro=won?[{...lines[0],bg:lines[0].bg||ch.intro.find(l=>l.bg&&l.bg!=='black').bg},...lines.slice(1)]:lines;
+  scene(outro,{overlay:!won},()=>{
     if(won&&last) scene(STORY.epilogue,{},()=>storyCard(true,true));
     else storyCard(won,false);
   });
@@ -742,6 +779,12 @@ function bark(side,lines){
 function materialFor(color){
   let m=0; for(const p of G.game.b){ if(!p) continue; const t=p.toLowerCase(); if(t==='k') continue; m+=(p===t?-1:1)*VALS[t]; }
   return color==='w'?m:-m;
+}
+// How heated the match is, for the music: it builds with the move count, trades, material swings and checks.
+function tension(){
+  if(!G||G.story==null) return .15;
+  const ply=G.history.length, caps=G.history.slice(-6).filter(h=>h.m.captured).length;
+  return Math.min(1,.12+Math.min(.3,ply/100)+Math.min(.2,Math.abs(materialFor('w'))*.03)+caps*.07+(G.game.inCheck()?.25:0)+(Math.abs(G.aiScore||0)>250?.1:0));
 }
 function storyBarks(m,mover,st){
   if(G.story==null||st.over) return;
@@ -778,7 +821,7 @@ function storyCard(won,final){
 }
 function renderStory(){
   const n=STORY.chapters.length, done=progress.cleared>=n;
-  let s=`<div class="story-head"><h3>${esc(STORY.title)}</h3><p>Piégé dans un cercle de jeu clandestin, Lelouch doit battre ses six maîtres pour regagner sa liberté et retrouver sa vie de lycéen.</p>
+  let s=`<div class="story-head"><h3>${esc(STORY.title)}</h3><p>Piégé dans un cercle de jeu clandestin, Lelouch doit vaincre ses adversaires un à un pour regagner sa liberté et retrouver sa vie de lycéen.</p>
     <div class="story-prog"><i style="width:${Math.round(Math.min(progress.cleared,n)/n*100)}%"></i></div><small>${Math.min(progress.cleared,n)} / ${n} adversaires vaincus</small></div><ol class="chaps">`;
   STORY.chapters.forEach((ch,i)=>{
     const beaten=i<progress.cleared, open=i<=progress.cleared, cur=G&&G.story===i&&!G.over;
@@ -797,20 +840,37 @@ $('story').addEventListener('click',e=>{
   if(e.target.closest('#stEpilogue')) scene(STORY.epilogue,{});
 });
 
-/* ---------- sound (synthesized wood clicks) ---------- */
-let ac=null;
+/* ---------- sound: wooden piece-on-board hits, modelled as a few decaying resonances (rendered once) ---------- */
+let ac=null, sfxOut=null;
 function ensureAudio(){ if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ ac=null; } } if(ac&&ac.state==='suspended') ac.resume().catch(()=>{}); }
-function knock(t,freq,gain,dur){
-  const n=Math.floor(ac.sampleRate*dur), buf=ac.createBuffer(1,n,ac.sampleRate), d=buf.getChannelData(0);
-  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,5);
-  const src=ac.createBufferSource(); src.buffer=buf;
-  const f=ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value=freq; f.Q.value=1.4;
-  const g=ac.createGain(); g.gain.value=gain;
-  src.connect(f); f.connect(g); g.connect(ac.destination); src.start(t);
-  const o=ac.createOscillator(), og=ac.createGain();
-  o.type='sine'; o.frequency.setValueAtTime(freq/5,t); o.frequency.exponentialRampToValueAtTime(freq/10,t+dur*1.5);
-  og.gain.setValueAtTime(gain*.5,t); og.gain.exponentialRampToValueAtTime(.001,t+dur*1.5);
-  o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t+dur*1.6);
+// [frequency Hz, amplitude, decay s]: a low thud, the board's body, and a little bright contact on top.
+const HITS={
+  move:{modes:[[180,.55,.022],[400,1,.03],[880,.42,.017],[1700,.22,.008],[3050,.08,.004]],click:.5,len:.17},
+  capture:{modes:[[230,.5,.028],[520,1,.034],[1160,.62,.02],[2350,.34,.01],[4300,.12,.005]],click:.9,len:.21}
+};
+const hitBuf={};
+function hitBuffer(k){
+  if(hitBuf[k]) return hitBuf[k];
+  const H=HITS[k], sr=ac.sampleRate, n=Math.floor(sr*H.len), buf=ac.createBuffer(1,n,sr), d=buf.getChannelData(0);
+  for(const [f,a,tau] of H.modes){ const w=2*Math.PI*f/sr, ph=Math.random()*6.28, k2=Math.exp(-1/(tau*sr)); let env=a; for(let i=0;i<n;i++){ d[i]+=env*Math.sin(w*i+ph); env*=k2; } }
+  let lp=0, ce=H.click; const kc=Math.exp(-1/(.0022*sr));
+  for(let i=0;i<n;i++){ lp+=.4*((Math.random()*2-1)-lp); d[i]+=lp*ce; ce*=kc; }
+  const att=Math.floor(sr*.001); for(let i=0;i<att;i++) d[i]*=i/att;
+  let pk=0; for(let i=0;i<n;i++) pk=Math.max(pk,Math.abs(d[i])); for(let i=0;i<n;i++) d[i]/=pk||1;
+  return hitBuf[k]=buf;
+}
+function out(){
+  if(sfxOut) return sfxOut;
+  // a soft top-end roll-off and one early reflection, so the click sits on a table rather than in the headphones
+  const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=6500;
+  const dl=ac.createDelay(), dg=ac.createGain(); dl.delayTime.value=.017; dg.gain.value=.14;
+  lp.connect(ac.destination); lp.connect(dl); dl.connect(dg); dg.connect(ac.destination);
+  return sfxOut=lp;
+}
+function hit(t,k,gain,rate){
+  const src=ac.createBufferSource(), g=ac.createGain();
+  src.buffer=hitBuffer(k); src.playbackRate.value=(rate||1)*(.97+Math.random()*.06); g.gain.value=gain;
+  src.connect(g); g.connect(out()); src.start(t);
 }
 function tone(t,freq,dur,gain){
   const o=ac.createOscillator(), g=ac.createGain(); o.type='triangle'; o.frequency.value=freq;
@@ -831,67 +891,183 @@ function boom(t){
   g.gain.setValueAtTime(.5,t); g.gain.exponentialRampToValueAtTime(.001,t+1);
   o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+1.05);
 }
-function sound(kind){
+function sound(kind,delay){
   if(!settings.sound||!ac||ac.state!=='running') return;
-  const t=ac.currentTime+.005;
-  if(kind==='move') knock(t,1500,1.1,.07);
-  else if(kind==='capture'){ knock(t,1100,1.4,.09); knock(t+.035,2300,.7,.05); }
-  else if(kind==='castle'){ knock(t,1500,1,.06); knock(t+.11,1300,1,.06); }
-  else if(kind==='promote'){ knock(t,1500,1,.06); tone(t+.05,880,.18,.12); tone(t+.12,1320,.22,.1); }
-  else if(kind==='check'){ knock(t,1500,1,.06); tone(t+.02,740,.16,.14); tone(t+.1,988,.2,.12); }
+  const t=ac.currentTime+.005+(delay||0)/1000;
+  if(kind==='move') hit(t,'move',.6);
+  else if(kind==='capture'){ hit(t,'capture',.75); hit(t+.016,'move',.22,1.3); }
+  else if(kind==='castle'){ hit(t,'move',.55); hit(t+.1,'move',.5,.92); }
+  else if(kind==='promote'){ hit(t,'move',.55); tone(t+.05,880,.18,.1); tone(t+.12,1320,.22,.08); }
+  else if(kind==='check'){ hit(t,'move',.55); tone(t+.03,740,.16,.11); tone(t+.11,988,.2,.1); }
   else if(kind==='hover') tone(t,1760,.05,.035);
   else if(kind==='select'){ sweep(t,.35); tone(t+.02,587,.25,.07); tone(t+.06,880,.3,.06); }
   else if(kind==='geass'){ boom(t); sweep(t,.7); tone(t+.05,1175,.6,.05); tone(t+.15,1760,.8,.04); }
-  else if(kind==='end'){ knock(t,1300,1,.07); tone(t+.08,523,.4,.12); tone(t+.2,659,.4,.11); tone(t+.32,784,.6,.12); }
+  else if(kind==='end'){ hit(t,'move',.55); tone(t+.08,523,.4,.12); tone(t+.2,659,.4,.11); tone(t+.32,784,.6,.12); }
 }
 
-/* ---------- menu music: a dark D-minor loop synthesized live (pad, arpeggio, bass, pulse) ---------- */
+/* ---------- music: one synthesized theme per opponent, from a quiet opening to an epic climax ----------
+   A theme is a chord loop (one chord per bar), an optional melody (one MIDI note or null per eighth note,
+   looping over the progression) and an arpeggio pattern. Layers follow the intensity, 0 to 1:
+   pad and melody always; bass, arpeggio and light percussion from 0.3; full drums, brass doubling
+   and choir from 0.62. The master filter opens and the tempo lifts a little as intensity rises. */
+const _=null;
+const MTHEMES={
+  // the title screen: dark D minor
+  menu:{bpm:78,beats:4,min:.38,prog:[[50,53,57],[46,50,53],[43,46,50],[45,49,52]],arp:[0,1,2,3,2,1,0,2],arpV:'tri',pad:'saw',kit:'pulse'},
+  // Harlow: a smug harpsichord minuet
+  baron:{bpm:104,beats:3,prog:[[57,60,64],[50,53,57],[52,56,59],[57,60,64]],lead:'harpsi',
+    mel:[76,_,72,71,69,_, 77,_,74,_,69,_, 68,69,71,_,76,_, 69,_,_,_,_,_],arp:[0,2,1,2,3,2],arpV:'pluck',comp:true,kit:'waltz'},
+  // Isabella: a haughty ballroom waltz on celesta that swells into full orchestra
+  isabella:{bpm:92,beats:3,prog:[[52,55,59],[48,52,55],[45,48,52],[47,51,54],[52,55,59],[48,52,55],[45,48,52],[47,51,54]],lead:'celesta',
+    mel:[71,_,_,67,69,71, 72,_,_,71,69,67, 69,_,_,64,66,67, 66,_,_,_,63,_, 71,_,_,76,74,71, 72,_,_,76,74,72, 69,72,71,69,67,66, 71,_,_,_,_,_],
+    arp:[0,1,2,3,2,1],arpV:'pluck',comp:true,kit:'waltz'},
+  // Mira: a galloping knight
+  mira:{bpm:132,beats:3,prog:[[54,57,61],[50,54,57],[52,56,59],[49,53,56]],lead:'pluck',arp:[0,1,2,3,2,1],arpV:'harpsi',kit:'gallop',bass:[0,3]},
+  // Anselme: organ and bells in the chapel
+  anselme:{bpm:66,beats:4,prog:[[55,58,62],[51,55,58],[48,51,55],[50,54,57]],pad:'organ',lead:'bell',
+    mel:[74,_,_,_,70,_,_,_, 70,_,_,_,67,_,_,_, 72,_,_,_,67,_,63,_, 66,_,_,_,_,_,_,_],arp:[0,1,2,1,0,1,2,1],arpV:'pluck',kit:'timpani'},
+  // Gregor: a heavy ostinato in the vault
+  gregor:{bpm:90,beats:4,prog:[[52,55,59],[48,52,55],[50,54,57],[47,51,54]],lead:'brass',
+    mel:[64,_,_,_,64,_,67,_, 64,_,_,_,60,_,_,_, 62,_,_,_,62,_,66,_, 59,_,_,_,_,_,_,_],arp:[0,0,1,0,2,0,1,0],arpV:'pluck',kit:'anvil',bass:[0,2,4,6]},
+  // Séverine: a tango, fast and dangerous
+  severine:{bpm:118,beats:4,prog:[[50,53,57],[55,58,62],[45,49,52],[50,53,57]],lead:'violin',
+    mel:[69,_,_,70,69,_,65,_, 70,_,_,72,70,_,67,_, 73,_,72,_,70,_,69,_, 62,_,_,_,_,_,_,_],arp:[0,2,1,2,0,2,1,2],arpV:'pluck',kit:'tango',bass:[0,3,4,6]},
+  // Vance: a military march, snare from the first bar
+  vance:{bpm:112,beats:4,prog:[[48,51,55],[44,48,51],[46,50,53],[43,47,50]],lead:'brass',
+    mel:[67,_,_,67,72,_,72,_, 75,_,74,_,72,_,_,_, 74,_,_,70,77,_,74,_, 71,_,_,_,67,_,_,_],arp:[0,2,1,2,0,2,1,2],arpV:'pluck',kit:'march',bass:[0,2,4,6]},
+  // the Marquis: organ, choir and brass for the throne room
+  marquis:{bpm:80,beats:4,prog:[[47,50,54],[43,47,50],[40,43,47],[42,46,49]],pad:'organ',lead:'brass',choir:true,
+    mel:[78,_,_,_,74,_,71,_, 74,_,_,_,71,_,67,_, 71,_,69,_,67,_,64,_, 70,_,_,_,66,_,_,_],arp:[0,1,2,3,2,1,0,1],arpV:'pluck',kit:'timpani'}
+};
 const Music=(()=>{
-  const BPM=78, S=60/BPM/2, PROG=[[50,53,57],[46,50,53],[43,46,50],[45,49,52]], ARP=[0,1,2,3,2,1,0,2];
   const hz=m=>440*Math.pow(2,(m-69)/12);
-  let out=null, timer=0, step=0, next=0, playing=false;
-  function note(t,m,dur,type,vol,cut,detune){
-    const o=ac.createOscillator(), f=ac.createBiquadFilter(), g=ac.createGain();
-    o.type=type; o.frequency.value=hz(m); if(detune) o.detune.value=detune;
-    f.type='lowpass'; f.frequency.value=cut;
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+Math.min(.6,dur*.3)); g.gain.linearRampToValueAtTime(0,t+dur);
-    o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t+dur+.05);
+  let chain=null, theme=null, name='menu', timer=0, step=0, next=0, playing=false, I=.15, target=.15, vol=.9, noise=null;
+  function noiseBuf(){ if(!noise){ const n=ac.sampleRate, b=ac.createBuffer(1,n,n), d=b.getChannelData(0); for(let i=0;i<n;i++) d[i]=Math.random()*2-1; noise=b; } return noise; }
+  function env(g,t,vol,att,dur,pluck){
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+att);
+    if(pluck) g.gain.exponentialRampToValueAtTime(.0005,t+dur); else { g.gain.setValueAtTime(vol,t+Math.max(att,dur-.12)); g.gain.linearRampToValueAtTime(0,t+dur); }
   }
-  function pulse(t){
-    const o=ac.createOscillator(), g=ac.createGain(); o.type='sine';
-    o.frequency.setValueAtTime(70,t); o.frequency.exponentialRampToValueAtTime(38,t+.25);
-    g.gain.setValueAtTime(.28,t); g.gain.exponentialRampToValueAtTime(.001,t+.3);
-    o.connect(g); g.connect(out); o.start(t); o.stop(t+.32);
+  function osc(t,f,dur,type,vol,o){
+    o=o||{};
+    const s=ac.createOscillator(), g=ac.createGain(); let node=s;
+    s.type=type; s.frequency.value=f; if(o.detune) s.detune.value=o.detune;
+    if(o.vib){ const l=ac.createOscillator(), lg=ac.createGain(); l.frequency.value=5.5; lg.gain.setValueAtTime(0,t); lg.gain.linearRampToValueAtTime(o.vib,t+.25); l.connect(lg); lg.connect(s.detune); l.start(t); l.stop(t+dur+.05); }
+    if(o.cut){ const f2=ac.createBiquadFilter(); f2.type='lowpass'; f2.frequency.value=o.cut; if(o.sweep){ f2.frequency.setValueAtTime(o.cut*.25,t); f2.frequency.linearRampToValueAtTime(o.cut,t+.07); f2.frequency.linearRampToValueAtTime(o.cut*.6,t+.3); } s.connect(f2); node=f2; }
+    node.connect(g); g.connect(chain.bus);
+    env(g,t,vol,o.att||.008,dur,o.pluck);
+    s.start(t); s.stop(t+dur+.05);
   }
-  function schedule(i,t){
-    const bar=Math.floor(i/8)%4, k=i%8, c=PROG[bar], cycle=Math.floor(i/32);
-    if(k===0){
-      for(const m of c){ note(t,m,S*8.4,'sawtooth',.022,900,-7); note(t,m,S*8.4,'sawtooth',.022,900,7); }
-      note(t,c[0]-12,S*7.5,'triangle',.11,400);
+  function voice(v,t,m,dur,vol){
+    const f=hz(m);
+    switch(v){
+      case 'saw': osc(t,f,dur,'sawtooth',vol,{detune:-7,cut:900,att:Math.min(.6,dur*.3)}); osc(t,f,dur,'sawtooth',vol,{detune:7,cut:900,att:Math.min(.6,dur*.3)}); break;
+      case 'organ': osc(t,f,dur,'square',vol*.5,{cut:1600,att:.06}); osc(t,f*2,dur,'sine',vol*.6,{att:.06}); break;
+      case 'choir': for(const d of [-11,0,11]) osc(t,f,dur,'triangle',vol*.5,{detune:d,cut:1500,att:.45,vib:6}); break;
+      case 'harpsi': osc(t,f,.42,'sawtooth',vol,{cut:3400,pluck:true,att:.003}); osc(t,f*2,.25,'square',vol*.18,{cut:5000,pluck:true,att:.003}); break;
+      case 'pluck': osc(t,f,.32,'triangle',vol,{pluck:true,att:.004}); break;
+      case 'celesta': osc(t,f,1.5,'sine',vol,{pluck:true,att:.003}); osc(t,f*4,.5,'sine',vol*.22,{pluck:true,att:.002}); break;
+      case 'bell': osc(t,f,2.4,'sine',vol,{pluck:true,att:.003}); osc(t,f*2.76,1.1,'sine',vol*.3,{pluck:true,att:.002}); break;
+      case 'brass': osc(t,f,dur,'sawtooth',vol,{cut:2600,sweep:true,att:.04}); osc(t,f,dur,'sawtooth',vol*.6,{cut:2200,detune:9,att:.05}); break;
+      case 'violin': osc(t,f,dur,'sawtooth',vol,{cut:2700,att:.07,vib:9}); break;
+      case 'tri': osc(t,f,dur,'triangle',vol,{cut:2600}); break;
+      case 'bass': osc(t,f,dur,'triangle',vol,{cut:420,att:.01}); break;
+      case 'pbass': osc(t,f,Math.min(dur,.5),'sawtooth',vol*.55,{cut:520,pluck:true,att:.004}); osc(t,f,Math.min(dur,.5),'sine',vol,{pluck:true,att:.004}); break;
     }
-    if(cycle>0){ const a=ARP[k], m=a===3?c[0]+12:c[a]; note(t,m+12,S*.95,'triangle',.045,2600); }
-    if(k===0||k===4||(k===7&&bar===3)) pulse(t);
-    if(cycle%2===1&&k===0&&bar===0) note(t,c[2]+24,S*6,'sine',.03,6000);
   }
-  function tick(){ while(next<ac.currentTime+.3){ schedule(step,next); next+=S; step++; } }
+  function nz(t,dur,vol,type,freq,q){
+    const s=ac.createBufferSource(), f=ac.createBiquadFilter(), g=ac.createGain();
+    s.buffer=noiseBuf(); f.type=type; f.frequency.value=freq; if(q) f.Q.value=q;
+    s.connect(f); f.connect(g); g.connect(chain.bus); env(g,t,vol,.002,dur,true); s.start(t,Math.random()*.5); s.stop(t+dur+.02);
+  }
+  function kick(t,v){ const s=ac.createOscillator(), g=ac.createGain(); s.type='sine'; s.frequency.setValueAtTime(95,t); s.frequency.exponentialRampToValueAtTime(38,t+.22); s.connect(g); g.connect(chain.bus); env(g,t,.32*v,.003,.32,true); s.start(t); s.stop(t+.35); }
+  function snare(t,v){ nz(t,.17,.16*v,'bandpass',1900,.8); const s=ac.createOscillator(), g=ac.createGain(); s.type='triangle'; s.frequency.setValueAtTime(200,t); s.frequency.exponentialRampToValueAtTime(150,t+.08); s.connect(g); g.connect(chain.bus); env(g,t,.1*v,.002,.1,true); s.start(t); s.stop(t+.12); }
+  function hat(t,v){ nz(t,.045,.05*v,'highpass',7000); }
+  function crash(t){ nz(t,1.6,.07,'highpass',4500); }
+  function timp(t,m,v){ const s=ac.createOscillator(), g=ac.createGain(); s.type='sine'; s.frequency.setValueAtTime(hz(m)*1.04,t); s.frequency.exponentialRampToValueAtTime(hz(m),t+.15); s.connect(g); g.connect(chain.bus); env(g,t,.3*v,.004,1.1,true); s.start(t); s.stop(t+1.15); nz(t,.12,.05*v,'lowpass',600); }
+  function anvil(t,v){ nz(t,.25,.06*v,'bandpass',3200,6); osc(t,1240,.3,'square',.012*v,{pluck:true,cut:5000}); }
+  function drums(T,t,k,bar,spb){
+    const beat=k%2===0, b=k/2, epic=I>=.62, mid=I>=.3, four=T.beats===4;
+    if(epic&&k===0&&bar%4===0) crash(t);
+    if(mid&&(epic||beat)) hat(t,epic?1:.6);
+    switch(T.kit){
+      case 'pulse': if(k===0||k===4||(epic&&beat)) kick(t,1); break;
+      case 'waltz': if(k===0) kick(t,mid?1:.5); if(epic&&(k===2||k===4)) snare(t,.45); break;
+      case 'gallop': if(k===0||(mid&&k===3)) kick(t,1); if(epic&&(k===2||k===5)) snare(t,.5); break;
+      case 'march': if(beat) snare(t,mid?.8:.35); else if(epic) snare(t,.3); if(mid&&(k===0||k===4)) kick(t,1); break;
+      case 'tango': if(mid&&[0,3,4,6].includes(k)) kick(t,.9); if(epic&&k===4) snare(t,.8); break;
+      case 'timpani': if(k===0) timp(t,T.prog[bar][0]-12,mid?1:.55); if(epic&&(k===4||k===6||k===7)) timp(t,T.prog[bar][0]-5,.6); break;
+      case 'anvil': if(k===0||(mid&&k===4)) kick(t,1); if(mid&&(k===2||k===6)) anvil(t,1); break;
+    }
+    if(epic&&four&&T.kit!=='march'&&T.kit!=='tango'&&(k===2||k===6)) snare(t,.7);
+    if(epic&&beat&&T.kit!=='pulse'&&T.kit!=='timpani') kick(t,.7);
+  }
+  function schedule(T,i,t,S){
+    const spb=T.beats*2, bars=T.prog.length, bar=Math.floor(i/spb)%bars, k=i%spb, c=T.prog[bar], mid=I>=.3, epic=I>=.62;
+    if(k===0){
+      for(const m of c) voice(T.pad||'saw',t,m,S*spb*1.05,.022*(1-I*.3));
+      if(epic&&(T.choir||T.lead==='brass'||T.lead==='celesta')) for(const m of c) voice('choir',t,m+12,S*spb,.016);
+      if(!mid) voice('bass',t,c[0]-12,S*spb*.95,.1);
+    }
+    if(mid){
+      const bp=T.bass||[0];
+      if(bp.includes(k)) voice(epic?'pbass':'bass',t,c[0]-12+(T.kit==='tango'&&k===4?7:0),S*(T.beats===3?spb:2)*.95,.12);
+      if(T.comp&&(k===2||k===4)) for(const m of c) voice('pluck',t,m,.3,.022);
+      const a=T.arp[k%T.arp.length], m=a===3?c[0]+12:c[a];
+      voice(T.arpV,t,m+12,S*.95,epic?.04:.03);
+    }
+    if(T.mel){
+      const m=T.mel[i%T.mel.length];
+      if(m!=null){
+        let len=1; while(len<8&&T.mel[(i+len)%T.mel.length]==null) len++;
+        voice(T.lead,t,m,S*len*.95,T.lead==='celesta'||T.lead==='bell'?.06:.045);
+        if(epic&&T.lead!=='brass') voice('brass',t,m-12,S*len*.95,.03);
+        if(epic&&T.lead==='brass') voice('brass',t,m+12,S*len*.9,.018);
+      }
+    }
+    drums(T,t,k,bar,spb);
+  }
+  function tick(){
+    if(!chain) return;
+    while(next<ac.currentTime+.3){
+      I+=(target-I)*(target>I?.08:.03);
+      const T=theme, lvl=Math.max(I,T.min||0), S=60/(T.bpm*(1+lvl*.08))/2;
+      const saved=I; I=lvl;
+      schedule(T,step,next,S);
+      chain.filter.frequency.setTargetAtTime(1100+9000*Math.pow(I,1.6),next,.5);
+      chain.drive.gain.setTargetAtTime(.85+.45*I,next,.5);
+      I=saved; next+=S; step++;
+    }
+  }
+  function makeChain(){
+    const filter=ac.createBiquadFilter(), drive=ac.createGain(), gain=ac.createGain();
+    filter.type='lowpass'; filter.frequency.value=1400; filter.connect(drive); drive.connect(gain); gain.connect(ac.destination);
+    gain.gain.setValueAtTime(0,ac.currentTime); gain.gain.linearRampToValueAtTime(vol,ac.currentTime+1.6);
+    return {bus:filter,filter,drive,gain};
+  }
+  function fadeOut(c){
+    if(!c) return;
+    c.gain.gain.cancelScheduledValues(ac.currentTime); c.gain.gain.setValueAtTime(c.gain.gain.value,ac.currentTime); c.gain.gain.linearRampToValueAtTime(0,ac.currentTime+1.1);
+    setTimeout(()=>c.gain.disconnect(),1500);
+  }
   return {
-    start(){
-      if(playing||!settings.music) return;
+    play(n){
+      if(n&&MTHEMES[n]) { if(playing&&n===name) return; name=n; }
+      if(!settings.music) return;
       ensureAudio(); if(!ac) return;
-      playing=true; step=0; next=ac.currentTime+.08;
-      out=ac.createGain(); out.gain.setValueAtTime(0,ac.currentTime); out.gain.linearRampToValueAtTime(.9,ac.currentTime+2);
-      out.connect(ac.destination);
-      tick(); timer=setInterval(tick,80);
+      fadeOut(chain); chain=makeChain(); theme=MTHEMES[name];
+      step=0; next=ac.currentTime+.08;
+      if(!playing){ playing=true; timer=setInterval(tick,80); }
+      tick();
     },
+    start(){ this.play(); },
     stop(){
       if(!playing) return;
-      playing=false; clearInterval(timer);
-      const g=out; out=null;
-      g.gain.cancelScheduledValues(ac.currentTime); g.gain.setValueAtTime(g.gain.value,ac.currentTime); g.gain.linearRampToValueAtTime(0,ac.currentTime+.9);
-      setTimeout(()=>g.disconnect(),1200);
+      playing=false; clearInterval(timer); fadeOut(chain); chain=null;
     },
-    level(v){ if(out){ out.gain.cancelScheduledValues(ac.currentTime); out.gain.setValueAtTime(out.gain.value,ac.currentTime); out.gain.linearRampToValueAtTime(.9*v,ac.currentTime+1); } },
-    get playing(){ return playing; }
+    level(v){ vol=.9*v; if(chain){ const g=chain.gain.gain; g.cancelScheduledValues(ac.currentTime); g.setValueAtTime(g.value,ac.currentTime); g.linearRampToValueAtTime(vol,ac.currentTime+1); } },
+    intensity(v,now){ target=Math.max(0,Math.min(1,v)); if(now) I=target; },
+    get playing(){ return playing; },
+    get theme(){ return name; }
   };
 })();
 
@@ -919,13 +1095,13 @@ function renderMenu(){
 function menuReady(){
   if(!menuEl.classList.contains('splash')) return;
   ensureAudio(); menuEl.classList.remove('splash'); menuEl.classList.add('ready');
-  sound('geass'); Music.start();
+  sound('geass'); Music.play('menu');
   setTimeout(()=>$('miStory').focus(),50);
 }
 function openMenu(){
   closeModal(); renderMenu();
   menuEl.hidden=false; menuEl.classList.remove('leaving');
-  if(!menuEl.classList.contains('splash')){ Music.start(); $('miStory').focus(); }
+  if(!menuEl.classList.contains('splash')){ Music.play('menu'); Music.level(1); Music.intensity(.38); $('miStory').focus(); }
 }
 function leaveMenu(then){
   sound('select'); menuEl.classList.add('leaving');
@@ -948,7 +1124,7 @@ $('miStory').onclick=()=>leaveMenu(()=>{ if(G&&!G.over&&storyChapter()) setTab('
 $('miResume').onclick=()=>leaveMenu(()=>setTab('game'));
 $('miFree').onclick=()=>leaveMenu(()=>setTab('play'));
 $('miOptions').onclick=()=>{ const o=$('menuOpts'); o.hidden=!o.hidden; $('miOptions').setAttribute('aria-expanded',String(!o.hidden)); sound('hover'); };
-$('optMusic').onclick=()=>{ settings.music=!settings.music; save(); renderMenu(); settings.music?Music.start():Music.stop(); };
+$('optMusic').onclick=()=>{ settings.music=!settings.music; save(); renderMenu(); settings.music?Music.play('menu'):Music.stop(); };
 $('optSfx').onclick=()=>{ settings.sound=!settings.sound; save(); renderMenu(); renderSetup(); sound('select'); };
 $('btnMenu').onclick=openMenu;
 

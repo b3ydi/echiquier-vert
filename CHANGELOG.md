@@ -2,6 +2,20 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [1.2.0] - 2026-10-10
+
+### Ajouté
+- Deux nouveaux adversaires avec portraits et cinématiques : Lady Isabella von Britannia, la Mécène (chapitre 2), et le Général Hector Vance (chapitre 7, avant le Marquis).
+- Une cinématique plein écran après chaque victoire, qui amène l'adversaire suivant.
+- Une musique synthétisée par adversaire, calme en début de partie et de plus en plus épique avec les prises, les échecs et les écarts de matériel.
+- Nouveaux décors : la loge de l'Opéra et la salle des cartes.
+
+### Modifié
+- Le baron Harlow (chapitre 1) est plus facile.
+- Le bouton Geass devient « Skill ».
+- Nouveau son de déplacement, plus proche d'une pièce en bois posée sur l'échiquier, entendu quand la pièce arrive.
+- Les pièces se soulèvent quand on les attrape et se posent avec un petit rebond ; les pièces prises s'effacent sous l'attaquant.
+
 ## [1.1.0] - 2026-10-09
 
 ### Retiré
