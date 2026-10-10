@@ -1,6 +1,6 @@
 {
   "name": "echiquier-vert",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Code Geass : The Chess Game, fan game d'échecs dans le navigateur avec mode histoire, cinématiques et mode libre.",
   "private": true,
   "scripts": {

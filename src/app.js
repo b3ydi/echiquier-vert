@@ -248,7 +248,7 @@ function renderBoard(anim){
   for(let i=0;i<64;i++){
     const p=g.b[i]; if(!p) continue;
     const d=document.createElement('div'), [x,y]=xy(i);
-    d.className='pc p-'+pcode(p); d.style.transform=`translate(${x*100}%,${y*100}%)`; d.style.setProperty('--i',i);
+    d.className='pc p-'+pcode(p); d.style.translate=`${x*100}% ${y*100}%`; d.style.setProperty('--i',i);
     piecesEl.appendChild(d); pcEls[i]=d;
   }
   if(anim) animate(anim);
@@ -259,11 +259,11 @@ function slideDur(from,to){ return Math.round(150+42*Math.sqrt(Math.hypot((from&
 function slide(el,from,to){
   if(!el) return;
   const [fx,fy]=xy(from), [tx,ty]=xy(to), dur=slideDur(from,to);
-  el.style.transform=`translate(${fx*100}%,${fy*100}%)`;
+  el.style.translate=`${fx*100}% ${fy*100}%`;
   el.style.setProperty('--dur',dur+'ms');
   el.getBoundingClientRect();
   el.classList.add('anim');
-  el.style.transform=`translate(${tx*100}%,${ty*100}%)`;
+  el.style.translate=`${tx*100}% ${ty*100}%`;
   setTimeout(()=>el.classList.remove('anim'),dur*1.4+40);
   return dur;
 }
@@ -271,17 +271,17 @@ function slide(el,from,to){
 function dropIn(el,to){
   if(!el||!dropPos) return;
   const [tx,ty]=xy(to);
-  el.style.transform=`translate(${dropPos.x}px,${dropPos.y}px)`; el.style.scale='1.14';
+  el.style.translate=`${dropPos.x}px ${dropPos.y}px`; el.style.scale='1.14';
   el.getBoundingClientRect();
   el.classList.add('snap');
-  el.style.transform=`translate(${tx*100}%,${ty*100}%)`; el.style.scale='';
+  el.style.translate=`${tx*100}% ${ty*100}%`; el.style.scale='';
   setTimeout(()=>el.classList.remove('snap'),280);
 }
 // The captured piece stays a moment under the attacker, then fades out as it lands.
 function ghost(m,delay){
   const sq=m.flag==='e'?(m.from&~7)|(m.to&7):m.to, [x,y]=xy(sq);
   const d=document.createElement('div'); d.className='pc ghost p-'+pcode(m.captured);
-  d.style.transform=`translate(${x*100}%,${y*100}%)`; d.style.animationDelay=delay+'ms';
+  d.style.translate=`${x*100}% ${y*100}%`; d.style.animationDelay=delay+'ms';
   piecesEl.insertBefore(d,piecesEl.firstChild);
   setTimeout(()=>d.remove(),delay+260);
 }
@@ -440,7 +440,7 @@ function tryMove(from,to,anim){
   const opts=legal().filter(m=>m.from===from&&m.to===to);
   if(!opts.length) return false;
   if(opts.length>1){ // promotion
-    if(drag&&pcEls[from]){ const [x,y]=xy(to); pcEls[from].style.transform=`translate(${x*100}%,${y*100}%)`; }
+    if(drag&&pcEls[from]){ const [x,y]=xy(to); pcEls[from].style.translate=`${x*100}% ${y*100}%`; }
     askPromo(from,to,opts); return true;
   }
   commit(opts[0],anim); return true;
@@ -481,7 +481,7 @@ board.addEventListener('pointermove',e=>{
   drag.moved=true;
   const el=pcEls[drag.from]; if(!el) return;
   const r=drag.r, sq=r.width/8;
-  el.style.transform=`translate(${e.clientX-r.left-sq/2}px,${e.clientY-r.top-sq/2}px)`;
+  el.style.translate=`${e.clientX-r.left-sq/2}px ${e.clientY-r.top-sq/2}px`;
   const h=sqAt(e);
   if(h!==hoverSq){
     if(hoverSq>=0) sqEls[hoverSq].classList.remove('hover');

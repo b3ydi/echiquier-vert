@@ -51,11 +51,11 @@ button{font:inherit;color:inherit}
 .co.rk{left:4%;top:4%} .co.fl{right:5%;bottom:3%}
 .sq.l .co{color:var(--sq-d)} .sq.d .co{color:var(--sq-l)}
 .pieces{position:absolute;inset:0;z-index:4;pointer-events:none}
-.pc{position:absolute;left:0;top:0;width:12.5%;height:12.5%;background-size:100%;background-repeat:no-repeat;will-change:transform}
-.pc.anim{z-index:20;transition:transform var(--dur,.2s) cubic-bezier(.3,.05,.25,1);animation:carry calc(var(--dur,.2s) * 1.4) linear}
+.pc{position:absolute;left:0;top:0;width:12.5%;height:12.5%;background-size:100%;background-repeat:no-repeat;will-change:translate}
+.pc.anim{z-index:20;transition:translate var(--dur,.2s) cubic-bezier(.3,.05,.25,1);animation:carry calc(var(--dur,.2s) * 1.4) linear}
 @keyframes carry{0%{scale:1}35%{scale:1.08;filter:drop-shadow(0 5px 5px rgba(0,0,0,.35))}71%{scale:1;filter:none}84%{scale:.95}100%{scale:1}}
 .pc.drag{z-index:30;transition:scale .12s ease-out,filter .12s;scale:1.16;filter:drop-shadow(0 8px 9px rgba(0,0,0,.45));cursor:grabbing}
-.pc.snap{z-index:20;transition:transform .09s ease-out,scale .26s cubic-bezier(.3,1.8,.5,1)}
+.pc.snap{z-index:20;transition:translate .09s ease-out,scale .26s cubic-bezier(.3,1.8,.5,1)}
 .pc.ghost{z-index:0;animation:ghost .2s ease-in forwards}
 @keyframes ghost{to{opacity:0;scale:.7}}
 .arrows{position:absolute;inset:0;z-index:6;pointer-events:none}
