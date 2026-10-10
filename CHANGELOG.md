@@ -2,6 +2,11 @@
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [1.2.1] - 2026-10-10
+
+### Corrigé
+- Une pièce glissée à la souris restait décalée du curseur, de plus en plus loin à mesure qu'on s'éloignait du coin de l'échiquier.
+
 ## [1.2.0] - 2026-10-10
 
 ### Ajouté
